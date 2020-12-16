@@ -1,29 +1,100 @@
+import numpy as np
+import pandas as pd
+import os
 from boxhed import boxhed
 from utils import timer, curr_dat_time, run_as_process, exec_if_not_cached, _get_free_gpu_list, collapsed_ntree_gs
 from preprocessor import preprocessor 
 
-import sys
-sys.path.insert(0, '/home/grads/a/a.pakbin/survival_analysis/kernel/')
-from kernel_smoothing import TrueHaz
+from scipy.stats import beta # beta distribution.
+from scipy.stats import norm # normal distribution.
 
-#print ("warning! set OMP_NUM_THREADS")
 
-#TODO: make a new utils from this
-CACHE_ADDRESS = "./CACHE"
-import os
-from pathlib import Path
-import pickle
-import numpy as np
+DATA_ADDRESS = "./synth_files"
+#%%
+# Author: Xiaochen Wang
+# Function: TrueHaz
+# calculate values of hazard function on testing data.
+# Input:
+#      @ traj: test data, a numpy array where each row is a testing data point.
+#      @ ind_exp: index of hazard function. Details refer to writeup. 
+#                 User can add new hazard function by creating new ind_exp.
+# Return: A numpy array of hazards on testing data. 
+def TrueHaz(traj, ind_exp):
+    N = traj.shape[0]
+    result = np.zeros((N,))
+    if ind_exp==2:
+        for i in range(N):
+            t, x1, x2, x3 = traj[i,0:4]
+            if x3<=0.5:
+                temp = (x1+2*x2+2)**2*t
+            else:
+                temp = (2*x1+x2+1)**2*t**2
+            result[i] = temp
+    elif ind_exp == 3:
+        for i in range(N):
+            t, x1, x2, x3 = traj[i,0:4]
+            if x3<=0.5:
+                temp = 4*t
+            else:
+                temp = 10*t**2
+            result[i] = temp
+    elif ind_exp == 31:
+        for i in range(N):
+            t, x1 = traj[i,0:2]
+            if x1<=0.5:
+                temp = 4*t
+            else:
+                temp = 10*t**2
+            result[i] = temp   
+    elif ind_exp == 41:
+        result = beta.pdf(traj[:,0], 2, 2)*beta.pdf(traj[:,1], 2, 2) 
+    elif ind_exp == 42:
+        result = beta.pdf(traj[:,0], 4, 4)*beta.pdf(traj[:,1], 4, 4) 
+    elif ind_exp == 43:
+        logt = np.array([math.log(t) for t in traj[:,0]])
+        result = norm.pdf(logt-traj[:,1])/(traj[:,0]*norm.cdf(traj[:,1] - logt))            
+    elif ind_exp == 44:
+        cos2piz = np.array([math.cos(2*math.pi*x1) for x1 in traj[:,1]])    
+        result = 1.5*traj[:,0]**(1/2)*np.exp(-0.5*cos2piz-1.5)
+    elif ind_exp == 51:
+        result = beta.pdf(traj[:,0], 2, 2)*beta.pdf(traj[:,1], 2, 2)
+        for i in range(traj.shape[0]):
+            if traj[i,2]>0.5 and traj[i,3]>0.5:
+                result[i] = result[i]+1
+    elif ind_exp == 52:
+        result = beta.pdf(traj[:,0], 2, 2)*beta.pdf(traj[:,1], 2, 2)
+        for i in range(traj.shape[0]):
+            if traj[i,2]>0.5 and traj[i,3]>0.5:
+                result[i] = result[i]+1
+            if traj[i,4]>0.5:
+                result[i] = result[i]-0.5
+    elif ind_exp == 53:
+        result = beta.pdf(traj[:,0], 2, 2)*beta.pdf(traj[:,1], 2, 2)
+    elif ind_exp == 54:
+        result = beta.pdf(traj[:,0], 4, 4)*beta.pdf(traj[:,1], 4, 4) 
+    elif ind_exp == 55:
+        logt = np.array([math.log(t) for t in traj[:,0]])
+        result = norm.pdf(logt-traj[:,1])/(traj[:,0]*norm.cdf(traj[:,1] - logt))            
+    elif ind_exp == 56:
+        cos2piz = np.array([math.cos(2*math.pi*x1) for x1 in traj[:,1]])    
+        result = 1.5*traj[:,0]**(1/2)*np.exp(-0.5*cos2piz-1.5)
+    if ind_exp>=53 and ind_exp<=56:
+        for i in range(traj.shape[0]):
+            result[i] = result[i]+0.5*math.sin(math.pi*traj[i,2]*traj[i,3])
+            if traj[i,4]>0.5:
+                result[i] = result[i]+0.5
+ 
+    return result
 
 
 @exec_if_not_cached
 def _read_synth(ind_exp, num_irrelevant):
-    import pandas as pd
-    import numpy as np
     datname = 'data_exp' + str(ind_exp) + '_numIrr' + str(num_irrelevant)
 
-    dir = '/home/grads/a/a.pakbin/survival_analysis/FlexSurv/exp' + str(ind_exp) + '/Feb_19_irrelevant_features/'
-    long_lotraj = pd.read_csv(dir + 'train_long_lotraj_exp%d_numIrr_40.csv'%(ind_exp), sep=',', header=None) 
+    #dir = '/home/grads/a/a.pakbin/survival_analysis/FlexSurv/exp' + str(ind_exp) + '/Feb_19_irrelevant_features/'
+    #long_lotraj = pd.read_csv(dir + 'train_long_lotraj_exp%d_numIrr_40.csv'%(ind_exp), sep=',', header=None) 
+    long_lotraj = pd.read_csv(os.path.join(DATA_ADDRESS, 'train_long_lotraj_exp%d_numIrr_40.csv'%(ind_exp)), sep=',', header=None) 
+
 
     long_lotraj = long_lotraj.iloc[:,0:num_irrelevant+3]#.head(20)
     long_lotraj.columns = ['patient', 't_start']+["X_%i"%i for i in range(1, num_irrelevant+2)]
@@ -31,7 +102,7 @@ def _read_synth(ind_exp, num_irrelevant):
     long_lotraj['t_end'] = long_lotraj['t_start'].shift(-1)
     long_lotraj['delta'] = 0
 
-    delta = pd.read_csv(dir + 'train_delta_exp%d_numIrr_40.csv'%(ind_exp), sep=',', header=None).values.reshape(-1)
+    delta = pd.read_csv(os.path.join(DATA_ADDRESS, 'train_delta_exp%d_numIrr_40.csv'%(ind_exp)), sep=',', header=None).values.reshape(-1)
 
     TOTALTIME = 0.0
     pat_data_list = []
@@ -53,7 +124,7 @@ def _read_synth(ind_exp, num_irrelevant):
 def _read_synth_test(ind_exp, num_irrelevant):
     import pandas as pd
     dataname =  'exp' + str(ind_exp) + '_numIrr_%d'
-    data = pd.read_csv('../../BoXHED/test_data/' + 'test_random_pick_' + dataname%40 +  '.csv', sep=',', header=None)
+    data = pd.read_csv(os.path.join(DATA_ADDRESS, 'test_random_pick_' + dataname%40 +  '.csv'), sep=',', header=None)
 
     data = data.iloc[:,0:num_irrelevant+2]
     data.columns = ['t_start']+["X_%i"%i for i in range(1, num_irr+2)]
@@ -61,6 +132,8 @@ def _read_synth_test(ind_exp, num_irrelevant):
     true_haz = TrueHaz(data.values, ind_exp)
 
     return true_haz, data
+
+
 
 hyperparams = {
         "41_0" : {'max_depth':1, 'n_estimators':300},

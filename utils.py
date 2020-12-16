@@ -19,7 +19,7 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.expanduser("~"), "survival_analysis/BoXHED2.0/xgboost/python-package/"))
 
-CACHE_ADDRESS = './CACHE/'
+CACHE_ADDRESS = './tmp/'
 
 #log("loading XGB")
 import xgboost as xgb
