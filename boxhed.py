@@ -34,10 +34,6 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import LabelEncoder
 
 
-#TODO: change file name?
-import utils
-
-
 class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin, 
 
     def __init__(self, max_depth=1, n_estimators=100, eta=0.1, gpu_id = -1, nthread = -1):
@@ -47,13 +43,10 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
         self.gpu_id        = gpu_id
         self.nthread       = nthread
 
-     # accorting to https://scikit-survival.readthedocs.io/en/latest/generated/sksurv.linear_model.CoxnetSurvivalAnalysis.html: X: features Y: delta, t_start, t_end
-
 
     def _X_y_to_dmat(self, X, y=None, dt=None):
         dmat = xgb.DMatrix(X)
 
-        #TODO: make sure preprocessed
         if (y is not None):
             dmat.set_float_info('label',  y)
             dmat.set_float_info('weight', dt)
@@ -61,8 +54,6 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
         return dmat
         
 
-    #TODO: describe args
-    #def fit (self, X, y):
     def fit (self, X, y, dt=None):
 
         #TODO: could I do the type checking better?
@@ -78,7 +69,6 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
         if dt is None:
             dt = np.ones_like(y)
 
-        #f0_   = np.log(np.sum(y[:,0])/np.sum(y[:,1]))
         f0_   = np.log(np.sum(y)/np.sum(dt))
         dmat_ = self._X_y_to_dmat(X, y, dt)
 
@@ -132,7 +122,6 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
     def get_params(self, deep=True):
         return {"max_depth":     self.max_depth, 
                 "n_estimators":  self.n_estimators,
-                #"tpart_size":    self.tpart_size, 
                 "eta":           self.eta, 
                 "gpu_id":        self.gpu_id,
                 "nthread":       self.nthread}
@@ -144,13 +133,10 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
         return self
 
 
-    #def score(self, X, y, ntree_limit=0):
     def score(self, X, y, dt=None, ntree_limit=0):
-        #X, y       = check_X_y(X, y, multi_output=True)
         X, y    = check_X_y(X, y)
         if dt is None:
             dt = np.zeros_like(y)
 
         preds = self.predict(X, ntree_limit = ntree_limit)
-        #return -(np.inner(preds, y[:,1])-np.inner(np.log(preds), y[:,0]))
         return -(np.inner(preds, dt)-np.inner(np.log(preds), y))
