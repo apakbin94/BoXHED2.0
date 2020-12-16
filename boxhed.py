@@ -3,6 +3,7 @@ from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, Transfo
 from sklearn.utils.estimator_checks import check_estimator
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from collections.abc import Iterable
+from utils import read_config_json
 
 #TODO: change this?
 import subprocess                                                           
@@ -10,21 +11,27 @@ import os
 
 OLD_OR_NEW  =  ""
 
+'''
 if False:
     OLD_OR_NEW = "old_xgb/"
 
 p = subprocess.Popen(['make', '-j4'], cwd=os.path.join(os.path.expanduser("~"), "survival_analysis/BoXHED2.0/"+OLD_OR_NEW+"xgboost/build/"))
 p.wait()
-
+#TODO: wouldn't this interfere with XGB itself?
 #python_setup_log = open("./CACHE/python_setup_log.txt", "w")
 p = subprocess.Popen(['python', 'setup.py', 'install'], cwd=os.path.join(os.path.expanduser("~"), "survival_analysis/BoXHED2.0/"+OLD_OR_NEW+"xgboost/python-package/"))
 p.wait()
 #python_setup_log.close()
 
-
+'''
 import sys
 import os
-sys.path.append(os.path.join(os.path.expanduser("~"), "survival_analysis/BoXHED2.0/"+OLD_OR_NEW+"xgboost/python-package/"))
+
+config = read_config_json("config.txt")
+#TODO: sanity checking the address
+
+#TODO: maybe this can change once I figure out the BoXHED/XGB distinction while installing
+sys.path.append(os.path.join(config["boxhed_addr"], "/python-package/"))
 
 import xgboost as xgb
 

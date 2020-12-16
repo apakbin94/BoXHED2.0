@@ -2,7 +2,8 @@ import numpy as np
 import pandas as pd
 import os
 from boxhed import boxhed
-from utils import timer, curr_dat_time, run_as_process, exec_if_not_cached, _get_free_gpu_list, collapsed_ntree_gs, create_dir_if_not_exist
+from utils import timer, curr_dat_time, run_as_process, exec_if_not_cached, _get_free_gpu_list, create_dir_if_not_exist
+from grid_search import collapsed_ntree_gs
 from preprocessor import preprocessor 
 import math
 
@@ -15,8 +16,9 @@ RSLT_ADDRESS = "./results/"
 for addr in [DATA_ADDRESS, RSLT_ADDRESS]:
     create_dir_if_not_exist(addr)
 
+#TODO: get these from command line?
 nom_quant   = 256
-grid_search = False
+grid_search = True#False
 use_gpu     = False
 
 # when CPU hist is used, the batch size would be num_gpu * model_per_gpu
@@ -233,7 +235,7 @@ def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu):
 
 
 if __name__ == "__main__":
-
+    
     #TODO: if nthread used, this needs to change
     def _rslt_file_name (*args):
 
