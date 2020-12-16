@@ -43,7 +43,9 @@ from sklearn.model_selection import GroupKFold, GridSearchCV
 
 def curr_dat_time ():
     curr_dt = datetime.now(timezone("US/Central"))
-    return curr_dt.strftime("%a, %b %d, %H:%M:%S")
+    #return curr_dt.strftime("%a, %b %d, %H:%M:%S")
+    return curr_dt.strftime("%a_%b%d_%H:%M")
+
 
 def create_dir_if_not_exist(path):
     if not os.path.exists(path):

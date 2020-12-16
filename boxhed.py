@@ -16,10 +16,10 @@ if False:
 p = subprocess.Popen(['make', '-j4'], cwd=os.path.join(os.path.expanduser("~"), "survival_analysis/BoXHED2.0/"+OLD_OR_NEW+"xgboost/build/"))
 p.wait()
 
-python_setup_log = open("./CACHE/python_setup_log.txt", "w")
-p = subprocess.Popen(['python', 'setup.py', 'install'], cwd=os.path.join(os.path.expanduser("~"), "survival_analysis/BoXHED2.0/"+OLD_OR_NEW+"xgboost/python-package/"), stdout = python_setup_log, stderr = python_setup_log)
+#python_setup_log = open("./CACHE/python_setup_log.txt", "w")
+p = subprocess.Popen(['python', 'setup.py', 'install'], cwd=os.path.join(os.path.expanduser("~"), "survival_analysis/BoXHED2.0/"+OLD_OR_NEW+"xgboost/python-package/"))
 p.wait()
-python_setup_log.close()
+#python_setup_log.close()
 
 
 import sys

@@ -2,14 +2,27 @@ import numpy as np
 import pandas as pd
 import os
 from boxhed import boxhed
-from utils import timer, curr_dat_time, run_as_process, exec_if_not_cached, _get_free_gpu_list, collapsed_ntree_gs
+from utils import timer, curr_dat_time, run_as_process, exec_if_not_cached, _get_free_gpu_list, collapsed_ntree_gs, create_dir_if_not_exist
 from preprocessor import preprocessor 
+import math
 
 from scipy.stats import beta # beta distribution.
 from scipy.stats import norm # normal distribution.
 
+DATA_ADDRESS = "./synth_files/"
+RSLT_ADDRESS = "./results/"
 
-DATA_ADDRESS = "./synth_files"
+for addr in [DATA_ADDRESS, RSLT_ADDRESS]:
+    create_dir_if_not_exist(addr)
+
+nom_quant   = 256
+grid_search = False
+use_gpu     = False
+
+# when CPU hist is used, the batch size would be num_gpu * model_per_gpu
+nom_gpus = [4, 6]
+model_per_gpus = [8, 10]
+
 #%%
 # Author: Xiaochen Wang
 # Function: TrueHaz
@@ -91,8 +104,6 @@ def TrueHaz(traj, ind_exp):
 def _read_synth(ind_exp, num_irrelevant):
     datname = 'data_exp' + str(ind_exp) + '_numIrr' + str(num_irrelevant)
 
-    #dir = '/home/grads/a/a.pakbin/survival_analysis/FlexSurv/exp' + str(ind_exp) + '/Feb_19_irrelevant_features/'
-    #long_lotraj = pd.read_csv(dir + 'train_long_lotraj_exp%d_numIrr_40.csv'%(ind_exp), sep=',', header=None) 
     long_lotraj = pd.read_csv(os.path.join(DATA_ADDRESS, 'train_long_lotraj_exp%d_numIrr_40.csv'%(ind_exp)), sep=',', header=None) 
 
 
@@ -122,7 +133,6 @@ def _read_synth(ind_exp, num_irrelevant):
 
 @exec_if_not_cached
 def _read_synth_test(ind_exp, num_irrelevant):
-    import pandas as pd
     dataname =  'exp' + str(ind_exp) + '_numIrr_%d'
     data = pd.read_csv(os.path.join(DATA_ADDRESS, 'test_random_pick_' + dataname%40 +  '.csv'), sep=',', header=None)
 
@@ -153,23 +163,12 @@ hyperparams = {
 
 @run_as_process
 def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu):
-
-    #N: nom quant
-    #TODO: old prep or WQ?
-    N = 20
-
-    
-    
+        
     #from sklearn.utils.estimator_checks import check_estimator
     #check_estimator(boxhed())
-    #raise
     
-
     param_grid = {'max_depth':    [1, 2, 3, 4, 5],
                   'n_estimators': [50, 100, 150, 200, 250, 300]}
-
-    #param_grid = {'max_depth':    [1, 5],
-    #              'n_estimators': [50, 300]}
 
     rslt = {'ind_exp':       ind_exp, 
             'num_irr':       num_irr, 
@@ -178,52 +177,21 @@ def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu):
 
     data = _read_synth(ind_exp, num_irr)
     
-    #TODO: make sure running twice = once?
     prep = preprocessor()
-    #TODO: maybe change how to feed "data"?
-    
-    rslt['nom_quant'] = N
+    rslt['nom_quant'] = nom_quant
     prep_timer = timer()
-
-    #data = data.head(20)
-    ####data = pd.read_csv('____TEST____.csv')
-    ####N = 3
-    ####print (data)
-
-    pats, X, y = prep.preprocess(data, N, True)
-    ####print (X)
-    ####print (y)
-
-    ####X_test = pd.read_csv("____TEST____X.csv")
-    ####print (X_test)
-    ####print (prep.fix_data_on_boundaries(X_test))
-
-
-    ####raise
-    #print (X.shape)
-    
-    '''for i in range(X.shape[1]):
-        str_to_print = ""
-        for j in sorted(X.iloc[:,i].unique()):
-            if str_to_print != "":
-                str_to_print += ", "
-            str_to_print += "%.5f"%j
-        print (str_to_print, "\n")
-    print ("\n\n")'''
-
+    pats, X, y = prep.preprocess(data, nom_quant, True)
     rslt["prep_time"] = prep_timer.get_dur()
     
-    #gpu_list = _get_free_gpu_list(nom_gpu)
-    gpu_list = [-1]
-    #TODO: change the following
-    #gpu_list = [-1]
-     
-    #model_per_gpu = len(param_grid)
+    if use_gpu:
+        gpu_list = _get_free_gpu_list(nom_gpu)
+    else:
+        gpu_list = [-1] 
 
-    #'''
-    gridsearch_timer = timer()
-    #TODO: handle memory exception if model_per_gpu too large
-    cv_rslts, best_params = collapsed_ntree_gs(boxhed(), 
+    if grid_search:
+        gridsearch_timer = timer()
+        #TODO: handle memory exception if model_per_gpu too large
+        cv_rslts, best_params = collapsed_ntree_gs(boxhed(), 
                                   param_grid, 
                                   X, 
                                   y, 
@@ -233,15 +201,13 @@ def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu):
                                   model_per_gpu,
                                   -1)
     
-    rslt["GS_time"] = gridsearch_timer.get_dur()
-    #'''
-    #TODO: handle this shit
-    #TODO: what if the model is not using GPU at all?
+        rslt["GS_time"] = gridsearch_timer.get_dur()
+    else:
+        best_params = hyperparams["%d_%d"%(ind_exp, num_irr)]
 
-    #best_params = hyperparams["%d_%d"%(ind_exp, num_irr)]
-    #best_params = {'max_depth': 1, 'n_estimators': 250}
     best_params['gpu_id'] = gpu_list[0]
-    #TODO for GPU it's better to be -1 but for CPU 1. Make that specification possible
+
+    #TODO: nthread problem still not solved
     best_params['nthread'] = -1
 
     rslt.update(best_params)
@@ -249,61 +215,61 @@ def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu):
     boxhed_ = boxhed(**best_params)
 
     fit_timer = timer()
-    #boxhed_.fit (X,y)
     boxhed_.fit (X,y.iloc[:,0], y.iloc[:,1])
     rslt["fit_time"] = fit_timer.get_dur()
 
-    #TODO: estimator check sklearn
     #TODO: set __all__ for the scripts
 
     true_haz, test_X = _read_synth_test(ind_exp, num_irr) 
 
     pred_timer = timer()
-    #TO_DO: change
-    #test_X = test_X.iloc[0,:].values.reshape(1, -1)
-    #test_X[0,1] = 10
-    #print (test_X)
-    #import math
     test_x = prep.fix_data_on_boundaries(test_X)
     preds = boxhed_.predict(test_X)
-    #print (preds[0])
-    #print (math.exp(-0.100697))
     rslt["pred_time"] = pred_timer.get_dur()
 
     rslt["rmse"] = "%.3f"%(np.sqrt(np.square(true_haz - preds)).mean(axis=None))
+
     return rslt
 
 
-import pandas as pd
-
 if __name__ == "__main__":
 
-    #TODO: fix the names for when there is CPU instead of GPU
-    nom_gpu = 1#2
-    for model_per_gpu in [6]:#[1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 25]:
+    #TODO: if nthread used, this needs to change
+    def _rslt_file_name (*args):
 
-        rslts = []
-        for ind_exp in [41, 42, 43, 44]:
-            for num_irr in [0,20,40]:
+        out_str  = curr_dat_time() 
+        for arg in args:
+            out_str += "__" + arg +"=" \
+                    +  "".join(str(eval(arg)).split())
 
-                print ('    exp:    ', ind_exp)
-                print ('    num_irr:', num_irr)
-                print ('    nom GPU:', nom_gpu)
-                print ('    /GPU:   ', model_per_gpu)
-                print ("")
+        out_str += ".csv"
+        return out_str
+    
+    rslts = []
+    for nom_gpu in nom_gpus:
+        for model_per_gpu in model_per_gpus:
+ 
+            #TODO: tqdm
+            for ind_exp in [41, 42, 43, 44]:
+                for num_irr in [0,20,40]:
 
-                rslt = grid_search_test_synth(ind_exp, 
-                                              num_irr,
-                                              nom_gpu, 
-                                              model_per_gpu)
+                    print ('    exp:    ', ind_exp)
+                    print ('    num_irr:', num_irr)
+                    print ('    nom GPU:', nom_gpu)
+                    print ('    /GPU:   ', model_per_gpu)
+                    print ("")
 
-                #print ('t=',rslt['GS_time'], "  ",rslt['rmse'], '\n', "~"*5, "\n"*2, sep="")
-                print (rslt, "\n"*3, rslt["rmse"], "\n"*2, sep="")
-                rslts.append(rslt)
+                    rslt = grid_search_test_synth(ind_exp, 
+                                                  num_irr,
+                                                  nom_gpu, 
+                                                  model_per_gpu)
 
+                    print (rslt, "\n"*3, rslt["rmse"], "\n"*2, sep="")
+                    rslts.append(rslt)
 
-        #print ("\n"*2, "__"+curr_dat_time()+"__")
-        #TODO: get the day and save the result in the results file
-        print (pd.DataFrame(rslts))
-        #pd.DataFrame(rslts).to_csv("./RESULTS/NEW_IMP__CPU_%d_gpus_6_per_gpu.csv"%nom_gpu, index = None)
-        pd.DataFrame(rslts).to_csv("./RESULTS/OLD_PREP_265_HYPER__GPU__nom_GPU_%d__model_per_gpu_%d__nthread_-1.csv"%(nom_gpu, model_per_gpu), index = None)
+    rslt_df = pd.DataFrame(rslts)
+    rslt_df_file_name = _rslt_file_name("nom_quant", "use_gpu", "grid_search", "nom_gpus", "model_per_gpus")
+
+    print (rslt_df)
+    rslt_df.to_csv(os.path.join(RSLT_ADDRESS, rslt_df_file_name),
+            index = None)
