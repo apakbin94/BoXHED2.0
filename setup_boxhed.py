@@ -1,7 +1,11 @@
+import sys
 import os
 import json
 import subprocess
 from utils import read_config_json
+from setuptools import setup, Extension
+import sysconfig
+
 
 USE_CUDA = "ON" #ON/OFF
 if USE_CUDA == "ON":
@@ -9,40 +13,63 @@ if USE_CUDA == "ON":
 elif USE_CUDA == "OFF":
     make_nom_proc = "$(nproc)"
 
-#TODO: logging instead of just printing
-
 config = read_config_json("config.txt")
+
+from contextlib import redirect_stdout
+boxhed_setup_log = open("boxhed_setup_log.txt", "w")
+
+def run_cmd (cmd, cwd):
+    p = subprocess.Popen(cmd.split(), 
+            cwd=cwd, 
+            stdout = boxhed_setup_log, stderr = boxhed_setup_log)
+    p.wait()
+
+def log (msg):
+    print (msg)
+    print (msg, file = boxhed_setup_log)
+
 #######    setting up boxhed     #######
 
 #### installing xgb
 
-boxhed_setup_log = open("boxhed_setup_log.txt", "w")
+log ("creating build directory for boxhed ...")
+run_cmd("mkdir -p build", 
+        config["boxhed_addr"])
 
 
-print ("creating build directory for boxhed ...")
-p = subprocess.Popen(['mkdir', '-p', 'build'], 
-        cwd=config["boxhed_addr"],
-        stdout = boxhed_setup_log, stderr = boxhed_setup_log)
-p.wait()
+log ("running cmake for boxhed ...")
+run_cmd("cmake .. -DUSE_CUDA=%s"%USE_CUDA,
+        os.path.join(config["boxhed_addr"], "build"))
 
-print ("running cmake for boxhed ...")
-p = subprocess.Popen(['cmake', '..', "-DUSE_CUDA=%s"%USE_CUDA], 
-        cwd=os.path.join(config["boxhed_addr"], "build"),
-        stdout = boxhed_setup_log, stderr = boxhed_setup_log)
-p.wait()
 
-print ("running make for boxhed ...")
-p = subprocess.Popen(['make', "-j%s"%make_nom_proc], 
-        cwd=os.path.join(config["boxhed_addr"], "build"),
-        stdout = boxhed_setup_log, stderr = boxhed_setup_log)
-p.wait()
+log ("running make for boxhed ...")
+run_cmd("make -j%s"%make_nom_proc,
+        os.path.join(config["boxhed_addr"], "build"))
 
-print ("setting up boxhed for python ... ")
-p = subprocess.Popen(['python', "setup.py", "install"], 
-        cwd=os.path.join(config["boxhed_addr"], "python-package"),
-        stdout = boxhed_setup_log, stderr = boxhed_setup_log)
-p.wait()
+log ("setting up boxhed for python ... ")
+run_cmd ("python setup.py install",
+    os.path.join(config["boxhed_addr"], "python-package"))
 
-print ("boxhed installed successfully")
+log ("boxhed installed successfully")
+
+
 ####### setting up preprocessing #######
+print ("setting up the preprocessor ... ")
+import shutil
+try:
+    shutil.rmtree("./build")
+except OSError:
+    pass
 
+extra_compile_args = sysconfig.get_config_var('CFLAGS').split()
+
+if "-Wstrict-prototypes" in extra_compile_args: extra_compile_args.remove("-Wstrict-prototypes")
+
+extra_compile_args += ["-std=c++11", "-fopenmp"]
+
+with redirect_stdout(boxhed_setup_log):
+    setup(
+        ext_modules=[Extension('preprocess', ['preprocess.cpp'], include_dirs = ['./include'], extra_compile_args=extra_compile_args),],
+    )
+
+boxhed_setup_log.close()
