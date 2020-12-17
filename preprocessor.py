@@ -14,11 +14,6 @@ class preprocessor:
 
 
     def __init__(self):
-        #TODO: move compilation out of here!
-        #print ("WARNING: not compiling preprocessor all over again...")
-
-        #os.system("python setup_preprocess.py build")
-        #TODO: [0] causes problems if they have used multiple versions of python
         self.prep_libfile = glob.glob('build/*/preprocess*.so')[0]
         self.prep_lib = CDLL(self.prep_libfile)
 
@@ -47,7 +42,6 @@ class preprocessor:
 
     def _cnvrt_colnames(self):
         self.colnames[self.t_end_idx] = 'dt'
-        #self.colnames.remove('patient')
 
 
     def _contig_float(self, arr):
@@ -61,8 +55,6 @@ class preprocessor:
                                     c_size_t(self.ncols), 
                                     c_size_t(self.t_start_idx), 
                                     c_size_t(self.t_end_idx), 
-                                    #c_void_p(self.tpart.ctypes.data), 
-                                    #c_size_t(self.tpart.size))
                                     c_size_t(self.pat_idx), 
                                     c_size_t(self.delta_idx), 
                                     c_void_p(self.quant.ctypes.data), 
@@ -80,8 +72,6 @@ class preprocessor:
             c_size_t(self.pat_idx), 
             c_size_t(self.t_start_idx), 
             c_size_t(self.t_end_idx), 
-            #c_void_p(self.tpart.ctypes.data), 
-            #c_size_t(self.tpart.size)
             c_void_p(self.quant.ctypes.data), 
             c_size_t(self.quant_per_column)
             ))
@@ -95,14 +85,8 @@ class preprocessor:
                 c_size_t(self.ncols), 
                 byref(self.bndry_info), 
                 c_void_p(self.preprocessed.ctypes.data),
-
-                #c_void_p(self.tpart.ctypes.data), 
-                #c_size_t(self.tpart.size), 
-
                 c_void_p(self.quant.ctypes.data), 
                 c_size_t(self.quant_per_column), 
-
-
                 c_size_t(self.t_start_idx), 
                 c_size_t(self.t_end_idx), 
                 c_size_t(self.delta_idx), 
@@ -121,9 +105,6 @@ class preprocessor:
         self.y            = self.preprocessed[['delta', 'dt']]
         self.X            = self.preprocessed.drop(columns = ['patient', 'delta', 'dt'])
         
-        #XXX: I will not drop this so that we can use sklearn group kfold for sklearn
-        #self.preprocessed.drop(columns = ["patient"], inplace = True)
-
 
     def _set_lbs_ubs_ptrs(self):
         self.in_lbs   = (c_size_t * (self.bndry_info.npatients+1)).from_address(self.bndry_info.in_lbs)
@@ -147,10 +128,6 @@ class preprocessor:
 
         self.data  = self._contig_float(self.data)
 
-     
-    #def _compute_f0(self):
-    #    self.f0 = np.log(np.sum(self.data[:,self.delta_idx])/np.sum(self.data[:,self.t_end_idx]-self.data[:,self.t_start_idx]))
-
 
     def _compute_quant(self):
         self.tpart = self._contig_float(np.zeros((1, self.quant_per_column)))
@@ -170,33 +147,14 @@ class preprocessor:
 
         self._setup_data()
 
-        #self._compute_f0()
-
         self._compute_quant()
 
         self.bndry_info = self._get_boundaries()
         self._set_lbs_ubs_ptrs()
-
-        #print (self.bndry_info)
-        #print (self.quant)
-        '''    
-        for i in range(self.bndry_info.npatients):
-            if (i>10):
-                break
-            print ("pat idx: ", i)
-            print ("    range in input: ", self.in_lbs[i],  self.in_lbs[i+1]-1)
-            print ("    range in output:", self.out_lbs[i], self.out_lbs[i+1]-1) 
-        '''
-
-        
         self._preprocess()
-
         self._prep_output_df()
-        #print (self.preprocessed)
-
         self._free_boundary_info()
 
-        #return self.f0, self.pats, self.X, self.y
         return self.pats, self.X, self.y
 
     def fix_data_on_boundaries(self, X, nthreads=-1):
@@ -215,7 +173,6 @@ class preprocessor:
 
         processed = np.ascontiguousarray(X.values)
 
-        #print ('data:')
         self.prep_lib.fix_data_on_boundaries(
             c_void_p(processed.ctypes.data),
             c_size_t(nrows),
