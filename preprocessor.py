@@ -17,7 +17,7 @@ class preprocessor:
         #TODO: move compilation out of here!
         #print ("WARNING: not compiling preprocessor all over again...")
 
-        os.system("python setup_preprocess.py build")
+        #os.system("python setup_preprocess.py build")
         #TODO: [0] causes problems if they have used multiple versions of python
         self.prep_libfile = glob.glob('build/*/preprocess*.so')[0]
         self.prep_lib = CDLL(self.prep_libfile)
