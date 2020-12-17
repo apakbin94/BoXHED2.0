@@ -9,7 +9,7 @@ In order to install BoXHED2.0 locally, the steps are as follows:
 git clone *REPO_LINK*
 ```
 please note that it needs to be done for both repositories.
-2. **setting up conda**: We highly recommend devoting a conda environment to BoXHED2.0. This implementation uses python 3.8. We have provided the package list of the conda environment used for the development in the repository under the name *condapackagelist.txt*. 
+2. **setting up conda**: We highly recommend devoting a conda environment to BoXHED2.0. This implementation uses python 3.8. We have provided the package list of the conda environment used for the development in the repository under the name *packageslist.txt*. 
 
 You may create a conda environment named boxhed2.0 and load it with the package list mentioend above. To do so, you can go to the cloned BoXHED2.0 repository, and run the following:
 ```
