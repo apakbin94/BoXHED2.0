@@ -1,0 +1,3 @@
+{
+    "boxhed_addr" : "/home/grads/a/a.pakbin/survival_analysis/BoXHED2.0/xgboost/"
+}
