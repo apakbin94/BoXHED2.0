@@ -19,4 +19,13 @@ Having created the environment, you may run:
 ```
 conda activate boxhed2.0
 ```
-3. ****
+3. **BoXHED2.0 Installation**: This stage combines the two repositories, namely, BoXHED2.0 and BoXHED2.0Main. You need to provide the address of the cloned BoXHED2.0 in the file named config.txt in BoXHED2.0Main.
+
+Having set that, you may run:
+```
+python setup_boxhed.py build
+```
+3. **running BoXHED2.0**: we have included our synthetic data simulation as an example of how to use BoXHED2.0 in *boxhed_main.py*. You may run it as:
+```
+python boxhed_main.py
+```
