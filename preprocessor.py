@@ -1,5 +1,4 @@
 import os
-import glob
 from ctypes import *
 import numpy as np
 import pandas as pd
@@ -14,23 +13,73 @@ class preprocessor:
 
 
     def __init__(self):
-        self.prep_libfile = glob.glob('build/*/preprocess*.so')[0]
+        self.prep_libfile = './build/lib_preprocessor.so'
         self.prep_lib = CDLL(self.prep_libfile)
 
         self.prep_lib.compute_quant.restype    = None
-        self.prep_lib.compute_quant.argtypes   = [c_void_p, c_size_t, c_size_t, c_size_t, c_size_t, c_size_t, c_size_t, c_void_p, c_size_t, c_bool, c_int]
+        self.prep_lib.compute_quant.argtypes   = [
+                c_void_p, #data_v
+                c_size_t, #nrows 
+                c_size_t, #ncols
+                c_void_p, #is_cat_v
+                c_size_t, #t_start_idx
+                c_size_t, #t_end_idx
+                c_size_t, #pat_idx
+                c_size_t, #delta_idx
+                c_void_p, #quant_v
+                c_void_p, #quant_size_v
+                c_size_t, #quant_per_column
+                c_bool,   #weighted
+                c_int     #nthreads
+                ]
 
         self.prep_lib.get_boundaries.restype   = c_void_p
-        self.prep_lib.get_boundaries.argtypes  = [c_void_p, c_size_t, c_size_t, c_size_t, c_size_t, c_size_t, c_size_t, c_void_p, c_size_t]
+        self.prep_lib.get_boundaries.argtypes  = [
+                c_void_p, #data_v
+                c_size_t, #nrows
+                c_size_t, #ncols
+                c_size_t, #npatients
+                c_size_t, #pat_col_idx
+                c_size_t, #t_start_idx
+                c_size_t, #t_end_idx
+                c_void_p, #quant_v
+                c_void_p, #quant_size_v
+                c_size_t  #quant_per_column
+                ]
 
         self.prep_lib.preprocess.restype       = None
-        self.prep_lib.preprocess.argtypes      = [c_void_p, c_size_t, c_size_t, c_void_p, c_void_p, c_void_p, c_size_t, c_size_t, c_size_t, c_size_t, c_size_t]
+        self.prep_lib.preprocess.argtypes      = [
+                c_void_p, #data_v
+                c_size_t, #nrows
+                c_size_t, #ncols
+                c_void_p, #is_cat_v
+                c_void_p, #bndry_info
+                c_void_p, #out_data_v
+                c_void_p, #quant_v
+                c_void_p, #quant_size_v
+                c_size_t, #quant_per_column
+                c_size_t, #t_start_idx 
+                c_size_t, #t_end_idx
+                c_size_t, #delta_idx
+                c_size_t, #pat_col_idx
+                c_int     #nthreads 
+                ]
 
         self.prep_lib.free_boundary_info.restype  = None
-        self.prep_lib.free_boundary_info.argtypes = [c_void_p]
+        self.prep_lib.free_boundary_info.argtypes = [
+                c_void_p #bndry_info
+                ]
 
         self.prep_lib.fix_data_on_boundaries.restype  = None
-        self.prep_lib.fix_data_on_boundaries.argtypes = [c_void_p, c_size_t, c_size_t, c_void_p, c_void_p, c_size_t, c_int]
+        self.prep_lib.fix_data_on_boundaries.argtypes = [
+                c_void_p, #data_v 
+                c_size_t, #nrows
+                c_size_t, #ncols
+                c_void_p, #quant_idx_v
+                c_void_p, #quant_v
+                c_size_t, #quant_per_column
+                c_int     #nthreads
+                ]
  
 
     def _get_col_indcs(self):
@@ -47,20 +96,27 @@ class preprocessor:
     def _contig_float(self, arr):
         return np.ascontiguousarray(arr, dtype = np.float64)
 
+    def _contig_size_t(self, arr):
+        return np.ascontiguousarray(arr, dtype = np.uintp)
 
-    #TODO: can we have a parameter object to be accessed on the other side? rather than this??? this is so ugly
+    def _contig_bool(self, arr):
+        return np.ascontiguousarray(arr, dtype = np.bool_)
+
     def __compute_quant(self):
-        self.prep_lib.compute_quant(c_void_p(self.data.ctypes.data), 
-                                    c_size_t(self.nrows), 
-                                    c_size_t(self.ncols), 
-                                    c_size_t(self.t_start_idx), 
-                                    c_size_t(self.t_end_idx), 
-                                    c_size_t(self.pat_idx), 
-                                    c_size_t(self.delta_idx), 
-                                    c_void_p(self.quant.ctypes.data), 
-                                    c_size_t(self.quant_per_column),
-                                    c_bool(self.weighted),
-                                    c_int(self.nthreads))
+        self.prep_lib.compute_quant(
+            c_void_p(self.data.ctypes.data), 
+            c_size_t(self.nrows), 
+            c_size_t(self.ncols), 
+            c_void_p(self.is_cat.ctypes.data),
+            c_size_t(self.t_start_idx), 
+            c_size_t(self.t_end_idx), 
+            c_size_t(self.pat_idx), 
+            c_size_t(self.delta_idx), 
+            c_void_p(self.quant.ctypes.data), 
+            c_void_p(self.quant_size.ctypes.data),
+            c_size_t(self.quant_per_column),
+            c_bool(self.weighted),
+            c_int(self.nthreads))
 
 
     def _get_boundaries(self):
@@ -73,6 +129,7 @@ class preprocessor:
             c_size_t(self.t_start_idx), 
             c_size_t(self.t_end_idx), 
             c_void_p(self.quant.ctypes.data), 
+            c_void_p(self.quant_size.ctypes.data),
             c_size_t(self.quant_per_column)
             ))
 
@@ -83,15 +140,17 @@ class preprocessor:
                 c_void_p(self.data.ctypes.data),
                 c_size_t(self.nrows), 
                 c_size_t(self.ncols), 
+                c_void_p(self.is_cat.ctypes.data),
                 byref(self.bndry_info), 
                 c_void_p(self.preprocessed.ctypes.data),
                 c_void_p(self.quant.ctypes.data), 
+                c_void_p(self.quant_size.ctypes.data),
                 c_size_t(self.quant_per_column), 
                 c_size_t(self.t_start_idx), 
                 c_size_t(self.t_end_idx), 
                 c_size_t(self.delta_idx), 
                 c_size_t(self.pat_idx), 
-                c_size_t(self.nthreads))
+                c_int(self.nthreads))
 
     def _free_boundary_info(self):
         self.prep_lib.free_boundary_info(byref(self.bndry_info))
@@ -130,20 +189,25 @@ class preprocessor:
 
 
     def _compute_quant(self):
-        self.tpart = self._contig_float(np.zeros((1, self.quant_per_column)))
-        self.quant = self._contig_float(np.zeros((1, self.quant_per_column*(self.ncols))))
+        self.tpart      = self._contig_float(np.zeros((1, self.quant_per_column)))
+        self.quant      = self._contig_float(np.zeros((1, self.quant_per_column*(self.ncols))))
+        self.quant_size = self._contig_size_t(np.zeros((1, self.ncols)))
+
         self.__compute_quant()
 
-    def preprocess(self, data, quant_per_column=20, weighted=False, nthreads=-1):
+    def preprocess(self, data, is_cat=[], quant_per_column=20, weighted=False, nthreads=-1):
         #TODO: maye change how the data is given? pat, X, y?
 
         #XXX: using np.float64---c_double
-        self.nthreads           = nthreads
+        self.nthreads       = nthreads
         self.quant_per_column   = min(quant_per_column, 256)
-        self.weighted           = weighted
-        self.data               = data
-        self.nrows              = data.shape[0]
-        self.ncols              = data.shape[1]
+        self.weighted       = weighted
+        self.data           = data
+        self.is_cat         = self._contig_bool(np.zeros((1, data.shape[1])))
+        for cat_col in is_cat:
+            self.is_cat [0, cat_col] = True
+        self.nrows          = data.shape[0]
+        self.ncols          = data.shape[1]
 
         self._setup_data()
 
