@@ -1,3 +1,0 @@
-{
-    "boxhed_addr" : "../BoXHED2.0/"
-}
