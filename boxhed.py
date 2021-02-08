@@ -5,33 +5,7 @@ from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from collections.abc import Iterable
 from utils import read_config_json
 
-#TODO: change this?
-import subprocess                                                           
-import os
-
-OLD_OR_NEW  =  ""
-
-'''
-if False:
-    OLD_OR_NEW = "old_xgb/"
-
-p = subprocess.Popen(['make', '-j4'], cwd=os.path.join(os.path.expanduser("~"), "survival_analysis/BoXHED2.0/"+OLD_OR_NEW+"xgboost/build/"))
-p.wait()
-#TODO: wouldn't this interfere with XGB itself?
-#python_setup_log = open("./CACHE/python_setup_log.txt", "w")
-p = subprocess.Popen(['python', 'setup.py', 'install'], cwd=os.path.join(os.path.expanduser("~"), "survival_analysis/BoXHED2.0/"+OLD_OR_NEW+"xgboost/python-package/"))
-p.wait()
-#python_setup_log.close()
-
-'''
-import sys
-import os
-
-config = read_config_json("config.txt")
-#TODO: sanity checking the address
-
 #TODO: maybe this can change once I figure out the BoXHED/XGB distinction while installing
-sys.path.append(os.path.join(config["boxhed_addr"], "/python-package/"))
 
 import xgboost as xgb
 
@@ -43,7 +17,7 @@ from sklearn.preprocessing import LabelEncoder
 
 class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin, 
 
-    def __init__(self, max_depth=1, n_estimators=100, eta=0.1, gpu_id = -1, nthread = -1):
+    def __init__(self, max_depth=1, n_estimators=100, eta=0.1, gpu_id = -1, nthread = 1):
         self.max_depth     = max_depth
         self.n_estimators  = n_estimators
         self.eta           = eta
