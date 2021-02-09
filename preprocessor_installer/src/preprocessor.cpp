@@ -37,7 +37,7 @@ inline size_t _tquant_distance(const std::vector<T>& tquant, int tquant_i, int t
 
 
 template <class T>
-inline std::pair<int,int> _get_range_sorted(const std::vector<T> &vec, const T min, const T max, const int start_idx=-1, const int end_idx=-1){
+inline std::pair<int,int> _get_range_sorted(const std::vector<T> &vec, const T min, const T max){//, const int start_idx=-1, const int end_idx=-1){
     
     //TODO: make it work with start_idx and end_idx
     auto start_iter = vec.begin();
@@ -461,7 +461,7 @@ inline void _compute_quant(const T* data, size_t nrows, size_t ncols, const bool
 template <class T>
 inline void _fill_time_hist(const T* unique_arr, const size_t unique_arr_size, 
                             const T* data, size_t nrows, size_t ncols,
-                            size_t t_start_idx, size_t t_end_idx, size_t pat_idx,
+                            size_t t_start_idx, size_t t_end_idx, //size_t pat_idx,
                             size_t* hist){
     //TODO: maybe pat_idx for searching optimization??
 
@@ -490,7 +490,7 @@ inline void _fill_time_hist(const T* unique_arr, const size_t unique_arr_size,
 template <class T>
 inline void _fill_non_time_acc_weight(const std::vector<std::pair<T, size_t>> &srtd_val_idx,
                                        const T* data, size_t nrows, size_t ncols,
-                                       size_t t_start_idx, size_t t_end_idx, size_t col_idx,
+                                       size_t t_start_idx, size_t t_end_idx,// size_t col_idx,
                                        T* acc_weight){
 
     const size_t first_data_idx = srtd_val_idx[0].second;
@@ -609,7 +609,7 @@ inline void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, c
         if (col_idx == t_start_idx){
             _fill_time_hist(unique, nom_unique, 
                             data, nrows, ncols,
-                            t_start_idx, t_end_idx, pat_idx,
+                            t_start_idx, t_end_idx, //pat_idx,
                             vals_hist);
 
             T time_diff [nom_unique];
@@ -625,7 +625,7 @@ inline void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, c
         else{
             _fill_non_time_acc_weight(srtd_val_idx, 
                             data, nrows, ncols,
-                            t_start_idx, t_end_idx, col_idx,
+                            t_start_idx, t_end_idx,// col_idx,
                             acc_weight);
             }
 
