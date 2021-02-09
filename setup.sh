@@ -14,22 +14,22 @@ check_success () {
 }
 
 echo "${OPEN}creating build directory for boxhed2.0 in ${DIR}/../xgboost/${CLOSE}"
-cd "${DIR}/../xgboost/"
+cd "${DIR}/BoXHED2.0/"
 mkdir -p build
 check_success
 
 echo "${OPEN}running cmake for boxhed in ${DIR}/../xgboost/build/${CLOSE}"
-cd "${DIR}/../xgboost/build/"
+cd "${DIR}/BoXHED2.0/build/"
 cmake .. -DUSE_CUDA=OFF
 check_success
 
 echo "${OPEN}running make for boxhed in ${DIR}/../xgboost/build/${CLOSE}"
-cd "${DIR}/../xgboost/build/"
+cd "${DIR}/BoXHED2.0/build/"
 make -j4
 check_success
 
 echo "${OPEN}setting up boxhed for python in ${DIR}/../xgboost/python-package/${CLOSE}"
-cd "${DIR}/../xgboost/python-package/"
+cd "${DIR}/BoXHED2.0/python-package/"
 python setup.py install
 check_success
 
