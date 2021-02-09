@@ -22,5 +22,5 @@ bash setup.sh
 ```
 3. **running BoXHED2.0**: we have included our synthetic data simulation as an example of how to use BoXHED2.0 in *main.py*. You may run it as:
 ```
-python boxhed_main.py
+python main.py
 ```
