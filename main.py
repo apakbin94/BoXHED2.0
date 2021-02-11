@@ -18,7 +18,7 @@ for addr in [DATA_ADDRESS, RSLT_ADDRESS]:
 
 #TODO: get these from command line?
 nom_quant   = 256
-grid_search = True#True#False#True#False
+grid_search = False#True
 use_gpu     = False
 
 # when CPU hist is used, the batch size would be num_gpu * model_per_gpu
@@ -27,7 +27,6 @@ model_per_gpus = [20]#[8, 10]
 keep_probs = [0.7, 0.8, 0.9, 1]
 num_bs     = 20
 
-# Author: Xiaochen Wang
 # calc_L2: calculate L2 distance and its 95% confidence interval.
 # Input:
 #      @ pred: a numpy array of a column indicates predicted hazards at testing data.
@@ -47,7 +46,6 @@ def calc_L2(pred, true):
 
 
 #%%
-# Author: Xiaochen Wang
 # Function: TrueHaz
 # calculate values of hazard function on testing data.
 # Input:
