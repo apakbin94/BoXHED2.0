@@ -158,7 +158,7 @@ def _read_synth_test(ind_exp, num_irrelevant):
     data = pd.read_csv(os.path.join(DATA_ADDRESS, 'test_random_pick_' + dataname%40 +  '.csv'), sep=',', header=None)
 
     data = data.iloc[:,0:num_irrelevant+2]
-    data.columns = ['t_start']+["X_%i"%i for i in range(1, num_irr+2)]
+    data.columns = ['t_start']+["X_%i"%i for i in range(1, num_irrelevant+2)]
     
     true_haz = TrueHaz(data.values, ind_exp)
 
@@ -182,7 +182,7 @@ hyperparams = {
 }
 
 
-def left_truncate(data, prob=0.5):
+def drop_rows(data, prob=0.5):
     data_sub = data.sample(frac=prob, random_state = np.random.RandomState(), replace=False).sort_index()
     
     patient_converter = dict(
@@ -212,7 +212,7 @@ def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu, keep_prob):
     #data = pd.read_csv("TEST.txt")
     #print (data)
 
-    data = left_truncate(data, keep_prob)
+    data = drop_rows(data, keep_prob)
     rslt["keep_prob"] = keep_prob
     #nom_quant = 10
     
