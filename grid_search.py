@@ -14,7 +14,7 @@ import numpy as np
 import copy
 #'''
 import os
-print ("CAN WE DO ANYTHING ABOUT OMP_NUM_THREADS")
+#TODO: CAN I DO ANYTHING ABOUT OMP_NUM_THREADS
 os.environ['OMP_NUM_THREADS'] = "1"
 #'''
 from itertools import product
