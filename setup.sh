@@ -16,23 +16,23 @@ check_success () {
 
 rm -f setup_log
 
-echo "${OPEN}creating build directory for boxhed2.0 in ${DIR}/BoXHED2.0/${CLOSE}"
-cd "${DIR}/BoXHED2.0/"
+echo "${OPEN}creating build directory for boxhed2.0 in ${DIR}/boxhed.kernel/${CLOSE}"
+cd "${DIR}/boxhed.kernel/"
 mkdir -p build &> ${setup_log}
 check_success
 
-echo "${OPEN}running cmake for boxhed in ${DIR}/BoXHED2.0/build/${CLOSE}"
-cd "${DIR}/BoXHED2.0/build/"
+echo "${OPEN}running cmake for boxhed in ${DIR}/boxhed.kernel/build/${CLOSE}"
+cd "${DIR}/boxhed.kernel/build/"
 cmake .. -DUSE_CUDA=OFF >> ${setup_log} 2>&1
 check_success
 
-echo "${OPEN}running make for boxhed in ${DIR}/BoXHED2.0/build/${CLOSE}"
-cd "${DIR}/BoXHED2.0/build/"
+echo "${OPEN}running make for boxhed in ${DIR}/boxhed.kernel/build/${CLOSE}"
+cd "${DIR}/boxhed.kernel/build/"
 make -j4 >> ${setup_log} 2>&1
 check_success
 
-echo "${OPEN}setting up boxhed for python in ${DIR}/BoXHED2.0/python-package/${CLOSE}"
-cd "${DIR}/BoXHED2.0/python-package/"
+echo "${OPEN}setting up boxhed for python in ${DIR}/boxhed.kernel/python-package/${CLOSE}"
+cd "${DIR}/boxhed.kernel/python-package/"
 python setup.py install >> ${setup_log} 2>&1
 check_success
 
