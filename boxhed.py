@@ -4,6 +4,7 @@ from sklearn.utils.estimator_checks import check_estimator
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from collections.abc import Iterable
 from utils import read_config_json
+from preprocessor import preprocessor
 
 #TODO: maybe this can change once I figure out the BoXHED/XGB distinction while installing
 
@@ -34,11 +35,21 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
     
         return dmat
         
+    def preprocess(self, data, is_cat=[], quant_per_column=20, weighted=False, nthreads=-1):
+        self.prep = preprocessor()
+        return self.prep.preprocess(
+            data             = data, 
+            is_cat           = is_cat,
+            quant_per_column = quant_per_column, 
+            weighted         = weighted, 
+            nthreads         = nthreads)
 
     def fit (self, X, y, w=None):
 
         #TODO: could I do the type checking better?
         check_array(y, ensure_2d = False)
+        #TODO: make sure prep exists
+        # or: if does not exist, create it now and train on preprocessed
 
         le = LabelEncoder()
         y  = le.fit_transform(y)
@@ -95,6 +106,7 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
 
     def predict(self, X, ntree_limit = 0):
         check_is_fitted(self)
+        self.prep.fix_data_on_boundaries(X)
         X = check_array(X)
 
         return self.boxhed_.predict(self._X_y_to_dmat(X), ntree_limit = ntree_limit)
@@ -108,9 +120,9 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
                 "nthread":       self.nthread}
 
 
-    def set_params(self, **parameters):
-        for parameter, value in parameters.items():
-            setattr(self, parameter, value)
+    def set_params(self, **params):
+        for param, val in params.items():
+            setattr(self, param, val)
         return self
 
 

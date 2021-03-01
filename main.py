@@ -216,14 +216,26 @@ def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu, keep_prob):
     rslt["keep_prob"] = keep_prob
     #nom_quant = 10
     
+    boxhed_ = boxhed()
+    '''
     prep = preprocessor()
+    '''
     rslt['nom_quant'] = nom_quant
     prep_timer = timer()
+
+    subjects, X, w, delta = boxhed_.preprocess(
+            data             = data, 
+            quant_per_column = nom_quant, 
+            weighted         = True, 
+            nthreads         = 1)
+
+    '''
     subjects, X, w, delta = prep.preprocess(
             data             = data, 
             quant_per_column = nom_quant, 
             weighted         = True, 
             nthreads         = 1)
+    '''
 
     rslt["prep_time"] = prep_timer.get_dur()
     #raise
@@ -259,7 +271,8 @@ def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu, keep_prob):
 
     rslt.update(best_params)
      
-    boxhed_ = boxhed(**best_params)
+    #boxhed_ = boxhed(**best_params)
+    boxhed_.set_params (**best_params)
 
     fit_timer = timer()
     boxhed_.fit (X, delta, w)
@@ -270,7 +283,7 @@ def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu, keep_prob):
     true_haz, test_X = _read_synth_test(ind_exp, num_irr) 
 
     pred_timer = timer()
-    test_X = prep.fix_data_on_boundaries(test_X)
+    #test_X = prep.fix_data_on_boundaries(test_X)
     preds = boxhed_.predict(test_X)
     rslt["pred_time"] = pred_timer.get_dur()
 
