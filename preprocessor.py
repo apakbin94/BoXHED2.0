@@ -160,8 +160,10 @@ class preprocessor:
         self._cnvrt_colnames(); 
 
         self.preprocessed = pd.DataFrame(self.preprocessed, columns = self.colnames)
-        self.pats         = self.preprocessed['patient']
-        self.y            = self.preprocessed[['delta', 'dt']]
+        self.subjects     = self.preprocessed['patient']
+        #self.y           = self.preprocessed[['delta', 'dt']]
+        self.w            = self.preprocessed['dt']
+        self.delta        = self.preprocessed['delta']
         self.X            = self.preprocessed.drop(columns = ['patient', 'delta', 'dt'])
         
 
@@ -219,7 +221,7 @@ class preprocessor:
         self._prep_output_df()
         self._free_boundary_info()
 
-        return self.pats, self.X, self.y
+        return self.subjects, self.X, self.w, self.delta
 
     def fix_data_on_boundaries(self, X, nthreads=-1):
 

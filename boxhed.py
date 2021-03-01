@@ -25,17 +25,17 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
         self.nthread       = nthread
 
 
-    def _X_y_to_dmat(self, X, y=None, dt=None):
+    def _X_y_to_dmat(self, X, y=None, w=None):
         dmat = xgb.DMatrix(X)
 
         if (y is not None):
             dmat.set_float_info('label',  y)
-            dmat.set_float_info('weight', dt)
+            dmat.set_float_info('weight', w)
     
         return dmat
         
 
-    def fit (self, X, y, dt=None):
+    def fit (self, X, y, w=None):
 
         #TODO: could I do the type checking better?
         check_array(y, ensure_2d = False)
@@ -47,11 +47,11 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
         if len(set(y)) <= 1:
             raise ValueError("Classifier can't train when only one class is present. All deltas are either 0 or 1.")
     
-        if dt is None:
-            dt = np.ones_like(y)
+        if w is None:
+            w = np.ones_like(y)
 
-        f0_   = np.log(np.sum(y)/np.sum(dt))
-        dmat_ = self._X_y_to_dmat(X, y, dt)
+        f0_   = np.log(np.sum(y)/np.sum(w))
+        dmat_ = self._X_y_to_dmat(X, y, w)
 
         if self.gpu_id>=0:
             self.objective_   = 'survival:boxhed_gpu'
@@ -114,10 +114,10 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
         return self
 
 
-    def score(self, X, y, dt=None, ntree_limit=0):
+    def score(self, X, y, w=None, ntree_limit=0):
         X, y    = check_X_y(X, y)
-        if dt is None:
-            dt = np.zeros_like(y)
+        if w is None:
+            w = np.zeros_like(y)
 
         preds = self.predict(X, ntree_limit = ntree_limit)
-        return -(np.inner(preds, dt)-np.inner(np.log(preds), y))
+        return -(np.inner(preds, w)-np.inner(np.log(preds), y))

@@ -219,7 +219,7 @@ def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu, keep_prob):
     prep = preprocessor()
     rslt['nom_quant'] = nom_quant
     prep_timer = timer()
-    pats, X, y = prep.preprocess(
+    subjects, X, w, delta = prep.preprocess(
             data             = data, 
             quant_per_column = nom_quant, 
             weighted         = True, 
@@ -234,13 +234,15 @@ def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu, keep_prob):
         gpu_list = [-1] 
 
     if grid_search:
+        #TODO fix y to delta,w in grid search
         gridsearch_timer = timer()
         #TODO: handle memory exception if model_per_gpu too large
         cv_rslts, best_params = collapsed_ntree_gs(boxhed(), 
                                   param_grid, 
                                   X, 
-                                  y, 
-                                  pats, 
+                                  w,
+                                  delta,
+                                  subjects, 
                                   5,
                                   gpu_list,
                                   model_per_gpu,
@@ -260,7 +262,7 @@ def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu, keep_prob):
     boxhed_ = boxhed(**best_params)
 
     fit_timer = timer()
-    boxhed_.fit (X,y.iloc[:,0], y.iloc[:,1])
+    boxhed_.fit (X, delta, w)
     rslt["fit_time"] = fit_timer.get_dur()
 
     #TODO: set __all__ for the scripts
@@ -268,7 +270,7 @@ def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu, keep_prob):
     true_haz, test_X = _read_synth_test(ind_exp, num_irr) 
 
     pred_timer = timer()
-    test_x = prep.fix_data_on_boundaries(test_X)
+    test_X = prep.fix_data_on_boundaries(test_X)
     preds = boxhed_.predict(test_X)
     rslt["pred_time"] = pred_timer.get_dur()
 

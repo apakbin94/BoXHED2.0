@@ -43,18 +43,24 @@ def _run_batch_process(param_dict_, rslts):
     X_shared_name     = param_dict_['X_shared_name']
     X_shape           = param_dict_['X_shape']
     X_dtype           = param_dict_['X_dtype']
-    y_shared_name     = param_dict_['y_shared_name']
-    y_shape           = param_dict_['y_shape']
-    y_dtype           = param_dict_['y_dtype']
+    w_shared_name     = param_dict_['w_shared_name']
+    w_shape           = param_dict_['w_shape']
+    w_dtype           = param_dict_['w_dtype']
+    delta_shared_name = param_dict_['delta_shared_name']
+    delta_shape       = param_dict_['delta_shape']
+    delta_dtype       = param_dict_['delta_dtype']
     batch_size        = param_dict_['batch_size']
     batch_idx         = param_dict_['batch_idx']
     test_block_size   = param_dict_['test_block_size']
 
-    smem_x = SharedMemory(X_shared_name)
-    smem_y = SharedMemory(y_shared_name)
+    smem_x     = SharedMemory(X_shared_name)
+    smem_w     = SharedMemory(w_shared_name)
+    smem_delta = SharedMemory(delta_shared_name)
 
-    X = np.ndarray(shape = X_shape, dtype = X_dtype, buffer = smem_x.buf)
-    y = np.ndarray(shape = y_shape, dtype = y_dtype, buffer = smem_y.buf)
+    X     = np.ndarray(shape = X_shape, dtype = X_dtype, buffer = smem_x.buf)
+    w     = np.ndarray(shape = w_shape, dtype = w_dtype, buffer = smem_w.buf)
+    delta = np.ndarray(shape = delta_shape, dtype = delta_dtype, buffer = smem_delta.buf)
+
 
 
     def _fit_single_model(param_dict):
@@ -62,9 +68,9 @@ def _run_batch_process(param_dict_, rslts):
         estimator.set_params(**param_dict)
         
         fold = param_dict["fold"]
-        estimator.fit(X[data_idx[fold]['train'], :], 
-                      y[data_idx[fold]['train'], 0],
-                      y[data_idx[fold]['train'], 1])
+        estimator.fit(X    [data_idx[fold]['train'], :], 
+                      delta[data_idx[fold]['train']],
+                      w    [data_idx[fold]['train']])
 
         return estimator
 
@@ -81,9 +87,9 @@ def _run_batch_process(param_dict_, rslts):
         fold    = test_dict['fold']
 
         score = est.score(
-            X[data_idx[fold]['test'], :], 
-            y[data_idx[fold]['test'], 0],
-            y[data_idx[fold]['test'], 1],
+            X    [data_idx[fold]['test'], :], 
+            delta[data_idx[fold]['test']],
+            w    [data_idx[fold]['test']],
             ntree_limit = n_trees)
 
         rslts[test_block_size*abs_idx+test_idx] = score
@@ -186,8 +192,9 @@ class collapsed_gs_:
         smm = SharedMemoryManager()
         smm.start()
 
-        X_shared = _to_shared_mem(smm, self.X)
-        y_shared = _to_shared_mem(smm, self.y)
+        X_shared     = _to_shared_mem(smm, self.X)
+        w_shared     = _to_shared_mem(smm, self.w)
+        delta_shared = _to_shared_mem(smm, self.delta)
 
         with Manager() as manager:
             param_dict_mngd =     manager.dict({
@@ -197,9 +204,12 @@ class collapsed_gs_:
                 'X_shared_name':     X_shared.name,
                 'X_shape':           self.X.shape,
                 'X_dtype':           self.X.dtype,
-                'y_shared_name':     y_shared.name,
-                'y_shape':           self.y.shape,
-                'y_dtype':           self.y.dtype,
+                'w_shared_name':     w_shared.name,
+                'w_shape':           self.w.shape,
+                'w_dtype':           self.w.dtype,
+                'delta_shared_name': delta_shared.name,
+                'delta_shape':       self.delta.shape,
+                'delta_dtype':       self.delta.dtype,
                 'batch_size':        batch_size,
                 'batch_idx':         None,
                 'test_block_size':   self.test_block_size
@@ -250,9 +260,11 @@ class collapsed_gs_:
             srtd_param_dict_test.pop('fold')
 
 
-    def fit(self, X,y):
-        self.X = np.array(X)
-        self.y = np.array(y)
+    def fit(self, X, w, delta):
+        self.X     = np.array(X)
+        self.w     = np.array(w)
+        self.delta = np.array(delta)
+
 
         self._batched_train_test()
 
@@ -268,14 +280,14 @@ class collapsed_gs_:
         }
 
 
-def collapsed_ntree_gs(estimator, param_grid, x, y, groups, n_splits, gpu_list, model_per_gpu, n_jobs = -1):
-    x, y, groups = indexable(x,y,groups)
+def collapsed_ntree_gs(estimator, param_grid, x, w, delta, subjects, n_splits, gpu_list, model_per_gpu, n_jobs = -1):
+    x, w, delta, groups = indexable(x, w, delta, subjects)
 
-    gkf = list(GroupKFold(n_splits=n_splits).split(x,y['delta'],groups))
+    gkf = list(GroupKFold(n_splits=n_splits).split(x,delta,subjects))
 
     collapsed_ntree_gs_  = collapsed_gs_(estimator, param_grid, gkf, n_jobs, gpu_list, model_per_gpu)
  
-    results     = collapsed_ntree_gs_.fit(x,y)
+    results     = collapsed_ntree_gs_.fit(x,w,delta)
     means       = results['mean_test_score']
     stds        = results['std_test_score']
     params      = results['params']
