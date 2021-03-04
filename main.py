@@ -17,12 +17,12 @@ for addr in [DATA_ADDRESS, RSLT_ADDRESS]:
     create_dir_if_not_exist(addr)
 
 #TODO: get these from command line?
-nom_quant   = 256
+num_quant   = 256
 grid_search = False#True
 use_gpu     = False
 
 # when CPU hist is used, the batch size would be num_gpu * model_per_gpu
-nom_gpus = [1]#[4, 6]
+num_gpus = [1]#[4, 6]
 model_per_gpus = [20]#[8, 10]
 keep_probs = [0.7, 0.8, 0.9, 1]
 num_bs     = 20
@@ -195,7 +195,7 @@ def drop_rows(data, prob=0.5):
     return data_sub
 
 @run_as_process
-def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu, keep_prob):
+def grid_search_test_synth(ind_exp, num_irr, num_gpu, model_per_gpu, keep_prob):
         
     #from sklearn.utils.estimator_checks import check_estimator
     #check_estimator(boxhed())
@@ -205,7 +205,7 @@ def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu, keep_prob):
 
     rslt = {'ind_exp':       ind_exp, 
             'num_irr':       num_irr, 
-            'nom_gpu':       nom_gpu, 
+            'num_gpu':       num_gpu, 
             'model_per_gpu': model_per_gpu}
 
     data = _read_synth(ind_exp, num_irr)
@@ -214,25 +214,25 @@ def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu, keep_prob):
 
     data = drop_rows(data, keep_prob)
     rslt["keep_prob"] = keep_prob
-    #nom_quant = 10
+    #num_quant = 10
     
     boxhed_ = boxhed()
     '''
     prep = preprocessor()
     '''
-    rslt['nom_quant'] = nom_quant
+    rslt['num_quant'] = num_quant
     prep_timer = timer()
 
     subjects, X, w, delta = boxhed_.preprocess(
             data             = data, 
-            quant_per_column = nom_quant, 
+            quant_per_column = num_quant, 
             weighted         = True, 
             nthreads         = 1)
 
     '''
     subjects, X, w, delta = prep.preprocess(
             data             = data, 
-            quant_per_column = nom_quant, 
+            quant_per_column = num_quant, 
             weighted         = True, 
             nthreads         = 1)
     '''
@@ -241,7 +241,7 @@ def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu, keep_prob):
     #raise
     
     if use_gpu:
-        gpu_list = _get_free_gpu_list(nom_gpu)
+        gpu_list = _get_free_gpu_list(num_gpu)
     else:
         gpu_list = [-1] 
 
@@ -267,7 +267,7 @@ def grid_search_test_synth(ind_exp, num_irr, nom_gpu, model_per_gpu, keep_prob):
     best_params['gpu_id'] = gpu_list[0]
 
     #TODO: nthread problem still not solved
-    best_params['nthread'] = nom_gpu*model_per_gpu#-1
+    best_params['nthread'] = num_gpu*model_per_gpu#-1
 
     rslt.update(best_params)
      
@@ -309,7 +309,7 @@ if __name__ == "__main__":
         return out_str
     
     rslts = []
-    for nom_gpu in nom_gpus:
+    for num_gpu in num_gpus:
         for model_per_gpu in model_per_gpus:
             for keep_prob in keep_probs:
  
@@ -323,7 +323,7 @@ if __name__ == "__main__":
                         for it in range(num_bs_):
                             print ('    exp:      ', ind_exp)
                             print ('    num_irr:  ', num_irr)
-                            print ('    nom GPU:  ', nom_gpu)
+                            print ('    num GPU:  ', num_gpu)
                             print ('    /GPU:     ', model_per_gpu)
                             print ('    keep_prob:', keep_prob)
                             print ('    bs it/all:', "%d/%d"%(it+1,num_bs_))
@@ -331,19 +331,19 @@ if __name__ == "__main__":
 
                             rslt = grid_search_test_synth(ind_exp, 
                                                           num_irr,
-                                                          nom_gpu, 
+                                                          num_gpu, 
                                                           model_per_gpu,
                                                           keep_prob)
 
                             print (rslt, "\n"*3, rslt["rmse"], "\n"*2, sep="")
                             ####
-                            #it_file_name = "_it=%d__"%(it+1)+_rslt_file_name("nom_quant", "ind_exp", "num_irr", "keep_prob")
+                            #it_file_name = "_it=%d__"%(it+1)+_rslt_file_name("num_quant", "ind_exp", "num_irr", "keep_prob")
                             #pd.DataFrame([rslt]).to_csv(os.path.join(RSLT_ADDRESS, it_file_name),index = None)
                             ####
                             rslts.append(rslt)
 
     rslt_df = pd.DataFrame(rslts)
-    rslt_df_file_name = _rslt_file_name("nom_quant", "use_gpu", "grid_search", "nom_gpus", "model_per_gpus", "keep_probs")
+    rslt_df_file_name = _rslt_file_name("num_quant", "use_gpu", "grid_search", "num_gpus", "model_per_gpus", "keep_probs")
 
     print (rslt_df)
     rslt_df.to_csv(os.path.join(RSLT_ADDRESS, rslt_df_file_name),

@@ -444,14 +444,14 @@ inline void _compute_quant(const T* data, size_t nrows, size_t ncols, const bool
 
         std::sort(vals, vals+vals_size);
         
-        size_t nom_unique;
-        _rmv_dupl_srtd<T> (vals, vals_size, &nom_unique);
+        size_t num_unique;
+        _rmv_dupl_srtd<T> (vals, vals_size, &num_unique);
 
-        size_t num_quants = std::min(nom_unique, quant_per_column);
+        size_t num_quants = std::min(num_unique, quant_per_column);
         quant_size [col_idx] = num_quants;
 
         for (size_t i=0; i<num_quants; ++i){
-            quant[col_idx*quant_per_column+i] = vals[static_cast<int>(nom_unique*i/num_quants)];
+            quant[col_idx*quant_per_column+i] = vals[static_cast<int>(num_unique*i/num_quants)];
         }
                 
     }
@@ -520,11 +520,11 @@ inline void _fill_non_time_acc_weight(const std::vector<std::pair<T, size_t>> &s
 
 template <class T>
 inline void _fill_quants (T* quant, size_t quant_per_column, size_t num_quants, size_t col_idx,
-                          T* unique, T* acc_weight, size_t nom_unique){
+                          T* unique, T* acc_weight, size_t num_unique){
 
-    std::vector<T> acc_weight_vec (acc_weight, acc_weight + nom_unique-1);
+    std::vector<T> acc_weight_vec (acc_weight, acc_weight + num_unique);
 
-    if (nom_unique <= quant_per_column){
+    if (num_unique <= quant_per_column){
         for (size_t i = 0; i < num_quants; ++i){
             quant[col_idx*quant_per_column + i] = unique [i];
         }
@@ -538,15 +538,36 @@ inline void _fill_quants (T* quant, size_t quant_per_column, size_t num_quants, 
         auto iter  = std::lower_bound(acc_weight_vec.begin(), acc_weight_vec.end(), quant_to_select);
         size_t idx = static_cast<size_t>(max(--iter, acc_weight_vec.begin()) - acc_weight_vec.begin());
         
+        T val   = unique[idx];
+        T val_n = (idx < num_unique-1) ? unique[idx+1] : 
+                                         unique[idx]+1;
+
+        T w     = acc_weight_vec[idx];
+        T w_n   = (idx < num_unique-1) ? acc_weight_vec[idx+1] : 
+                                         acc_weight_vec[idx]+1;
+
+        T q;
+
+        if (_approx_equal(w, quant_to_select)){
+            q = val;
+        } else if (_approx_equal(w_n, quant_to_select)){
+            q = val_n;
+        } else {
+            q = ((val_n-val)/(w_n-w))*(quant_to_select-w)+val;
+        }
+
+        quant[col_idx*quant_per_column + i] = q;
+
+        /*
         if ((idx < acc_weight_vec.size()-1) 
          && (std::abs(acc_weight_vec[idx]-quant_to_select) > std::abs(acc_weight_vec[idx+1]-quant_to_select))){
             idx += 1;
          }
 
         quant[col_idx*quant_per_column + i] = unique[idx];
-
+        */
         if (quant[col_idx*quant_per_column + i] == quant[col_idx*quant_per_column + i - 1])
-            throw std::invalid_argument("ERROR: Not enough unique values. Consider decreasing quant_per_column.");
+            throw std::invalid_argument("ERROR: An error has occured. Consider decreasing quant_per_column.");        
     }
 }
 
@@ -595,29 +616,29 @@ inline void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, c
         std::sort(srtd_val_idx.begin(), srtd_val_idx.end());
         
         T unique [vals_size];
-        size_t nom_unique;
-        _rmv_dupl_srtd(srtd_val_idx, unique, &nom_unique);
+        size_t num_unique;
+        _rmv_dupl_srtd(srtd_val_idx, unique, &num_unique);
         
-        size_t num_quants = std::min(nom_unique, quant_per_column);
+        size_t num_quants = std::min(num_unique, quant_per_column);
         quant_size [col_idx] = num_quants;
 
-        size_t vals_hist [nom_unique];
-        std::fill_n(vals_hist, nom_unique, 0);
+        size_t vals_hist [num_unique];
+        std::fill_n(vals_hist, num_unique, 0);
 
-        T acc_weight [nom_unique];
+        T acc_weight [num_unique];
 
         if (col_idx == t_start_idx){
-            _fill_time_hist(unique, nom_unique, 
+            _fill_time_hist(unique, num_unique, 
                             data, nrows, ncols,
                             t_start_idx, t_end_idx, //pat_idx,
                             vals_hist);
 
-            T time_diff [nom_unique];
+            T time_diff [num_unique];
 
-            std::adjacent_difference (unique, unique+nom_unique, time_diff);
+            std::adjacent_difference (unique, unique+num_unique, time_diff);
 
             acc_weight[0] = 0;  
-            for (size_t i = 1; i<nom_unique; ++i){ //multiplying hist count by the duration
+            for (size_t i = 1; i<num_unique; ++i){ //multiplying hist count by the duration
                 acc_weight [i] = acc_weight[i-1] + time_diff[i] * vals_hist [i-1];
             }
                         
@@ -629,10 +650,10 @@ inline void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, c
                             acc_weight);
             }
 
-        normalize (acc_weight, nom_unique, total_t);
+        normalize (acc_weight, num_unique, total_t);
 
         _fill_quants (quant, quant_per_column, num_quants, col_idx,
-                          unique, acc_weight, nom_unique);        
+                          unique, acc_weight, num_unique);        
     }
 }
 
