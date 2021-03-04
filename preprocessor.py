@@ -70,8 +70,8 @@ class preprocessor:
                 c_void_p #bndry_info
                 ]
 
-        self.prep_lib.fix_data_on_boundaries.restype  = None
-        self.prep_lib.fix_data_on_boundaries.argtypes = [
+        self.prep_lib.shift_left.restype  = None
+        self.prep_lib.shift_left.argtypes = [
                 c_void_p, #data_v 
                 c_size_t, #nrows
                 c_size_t, #ncols
@@ -160,6 +160,8 @@ class preprocessor:
         self._cnvrt_colnames(); 
 
         self.preprocessed = pd.DataFrame(self.preprocessed, columns = self.colnames)
+        print (self.preprocessed)
+        raise
         self.subjects     = self.preprocessed['patient']
         #self.y           = self.preprocessed[['delta', 'dt']]
         self.w            = self.preprocessed['dt']
@@ -223,7 +225,7 @@ class preprocessor:
 
         return self.subjects, self.X, self.w, self.delta
 
-    def fix_data_on_boundaries(self, X, nthreads=-1):
+    def shift_left(self, X, nthreads=-1):
 
         assert X.ndim==2,"ERROR: data needs to be 2 dimensional"
         nrows, ncols = X.shape
@@ -239,7 +241,7 @@ class preprocessor:
 
         processed = np.ascontiguousarray(X.values)
 
-        self.prep_lib.fix_data_on_boundaries(
+        self.prep_lib.shift_left(
             c_void_p(processed.ctypes.data),
             c_size_t(nrows),
             c_size_t(ncols),

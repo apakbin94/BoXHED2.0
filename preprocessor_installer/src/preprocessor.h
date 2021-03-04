@@ -85,7 +85,7 @@ void compute_quant(
         );
 
 
-void fix_data_on_boundaries(
+void shift_left(
         void* data_v, 
         size_t nrows, 
         size_t ncols, 

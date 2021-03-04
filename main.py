@@ -209,10 +209,10 @@ def grid_search_test_synth(ind_exp, num_irr, num_gpu, model_per_gpu, keep_prob):
             'model_per_gpu': model_per_gpu}
 
     data = _read_synth(ind_exp, num_irr)
-    #data = pd.read_csv("TEST.txt")
-    #print (data)
+    data = pd.read_csv("TEST.txt")
+    print (data)
 
-    data = drop_rows(data, keep_prob)
+    #data = drop_rows(data, keep_prob)
     rslt["keep_prob"] = keep_prob
     #num_quant = 10
     
@@ -225,6 +225,7 @@ def grid_search_test_synth(ind_exp, num_irr, num_gpu, model_per_gpu, keep_prob):
 
     subjects, X, w, delta = boxhed_.preprocess(
             data             = data, 
+            is_cat           = [4],
             quant_per_column = num_quant, 
             weighted         = True, 
             nthreads         = 1)

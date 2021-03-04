@@ -106,7 +106,7 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
 
     def predict(self, X, ntree_limit = 0):
         check_is_fitted(self)
-        self.prep.fix_data_on_boundaries(X)
+        self.prep.shift_left(X)
         X = check_array(X)
 
         return self.boxhed_.predict(self._X_y_to_dmat(X), ntree_limit = ntree_limit)
