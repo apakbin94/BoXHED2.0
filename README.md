@@ -36,4 +36,4 @@ then run jupyter notebook
 jupyter notebook 
 ``` 
 
-Now open the demo.ipynb file for a quick demonstration of how to train/test a BoXHED model on a synthetic dataset.
+Now open the tutorial.ipynb file for a quick demonstration of how to train/test a BoXHED model on a synthetic dataset.
