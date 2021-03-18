@@ -2,25 +2,40 @@
 
 For information on the functionalities of BoXHED2.0, please refer to [BoXHED1.0 Paper](http://proceedings.mlr.press/v119/wang20o/wang20o.pdf) published in ICML 2020.
 
-In order to install BoXHED2.0 locally, the steps are as follows:
+## Prerequisites
+The software developed and tested in Linux and Mac OS environments. The requirements are the following:
+- cmake  (>=3.18.2)
+- Python (>=3.8)
+- conda
 
-1. **cloning the repo**: first BoXHED2.0Main needs to be cloned. For doing so, you may run the following command:
-```
-git clone https://github.com/BoXHED/BoXHED2.0.git
-```
-2. **setting up conda**: We highly recommend devoting a conda environment to BoXHED2.0. This step makes sure BoXHED2.0 will not interfere with XGBoost (the library we have borrowed from extensively) when installed. This implementation uses python 3.8. You may create a conda environment named boxhed2.0. To do so, you can go to the cloned BoXHED2.0Main repository, and run the following:
+## Quick Start
+This section provides a demonstration of applying BoXHED 2.0 to a synthetic data example. 
+
+### 0. Setting up a conda environment
+We highly recommend devoting a conda environment to BoXHED 2.0. This step makes sure BoXHED 2.0 will not interfere with XGBoost (the library we have borrowed from extensively) when installed. This implementation uses python 3.8.
+Installing the conda environment should be done prioer to opening this notebook. Therefore, you need to set up the environment as instructed here and then reopen this notebook. So, please open a terminal and do the following:
+
+First create the conda environment:
 ```
 conda create -n boxhed2.0 python=3.8
 ```
-Having created the environment, you may run:
+
+then activate it
 ```
 conda activate boxhed2.0
 ```
-3. **BoXHED2.0 Installation**: You may run the setup bash script by:
+
+now install numpy, pandas, scikit-learn, pytz, py3nvml, matplotlib and jupyter notebook by:
+```
+bash conda_install_packages.sh
+```
+
+Subsequently, you can install BoXHED2.0 by running:
 ```
 bash setup.sh
 ```
-3. **running BoXHED2.0**: we have included our synthetic data simulation as an example of how to use BoXHED2.0 in *main.py*. You may run it as:
+
+then run jupyter notebook
 ```
-python main.py
-```
+jupyter notebook 
+``` 
