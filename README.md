@@ -37,3 +37,5 @@ jupyter notebook
 ``` 
 
 Now open the *tutorial.ipynb* file for a quick demonstration of how to train/test a BoXHED model on a synthetic dataset.
+
+Please note that everytime you relocate the code, you need to run bash setup.sh again.
