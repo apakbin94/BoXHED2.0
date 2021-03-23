@@ -160,8 +160,6 @@ class preprocessor:
         self._cnvrt_colnames(); 
 
         self.preprocessed = pd.DataFrame(self.preprocessed, columns = self.colnames)
-        print (self.preprocessed)
-        raise
         self.subjects     = self.preprocessed['patient']
         #self.y           = self.preprocessed[['delta', 'dt']]
         self.w            = self.preprocessed['dt']
