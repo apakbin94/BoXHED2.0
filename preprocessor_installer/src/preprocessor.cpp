@@ -97,6 +97,7 @@ class preprocessor{
                 T quantized_val;
 
                 if (is_cat[col_idx]         ||
+                    std::isnan(val)         ||
                     col_idx == t_start_idx  ||
                     col_idx == t_end_idx    || 
                     col_idx == pat_col_idx  || 
@@ -394,8 +395,10 @@ inline void _rmv_dupl_srtd(T* arr, const size_t arr_size, size_t * out_size){
             last_val   = arr[i];
         }
     }
+    /*
     *out_size = idx+1; 
-
+    */
+    *out_size =  std::isnan(arr[idx]) ? idx : idx+1;
 }
 
 
@@ -412,8 +415,10 @@ inline void _rmv_dupl_srtd(const std::vector<std::pair<T, size_t>> &vals, T* out
             last_val   = vals[i].first;
         }
     }
+    /*
     *out_size = idx+1; 
-
+    */
+    *out_size =  std::isnan(out[idx]) ? idx : idx+1;
 }
 
 
@@ -442,7 +447,11 @@ inline void _compute_quant(const T* data, size_t nrows, size_t ncols, const bool
             _copy_col2arr(data, nrows, ncols, t_end_idx, vals + nrows);
         }
 
-        std::sort(vals, vals+vals_size);
+        std::sort(vals, vals+vals_size,
+               [](const T a, 
+                  const T b)
+                 {return std::isnan(b) || a < b;}
+                );
         
         size_t num_unique;
         _rmv_dupl_srtd<T> (vals, vals_size, &num_unique);
@@ -613,7 +622,11 @@ inline void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, c
         for (size_t i=0; i<vals_size; ++i){
             srtd_val_idx [i] = std::make_pair(vals[i], i);
         }
-        std::sort(srtd_val_idx.begin(), srtd_val_idx.end());
+        std::sort(srtd_val_idx.begin(), srtd_val_idx.end(), 
+               [](const std::pair<T, size_t> a, 
+                  const std::pair<T, size_t> b)
+                 {return std::isnan(b.first) || a.first < b.first; }
+                 );
         
         T unique [vals_size];
         size_t num_unique;
