@@ -53,7 +53,7 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
 
         le = LabelEncoder()
         y  = le.fit_transform(y)
-        X, y       = check_X_y(X, y)
+        X, y       = check_X_y(X, y, force_all_finite='allow-nan')
 
         if len(set(y)) <= 1:
             raise ValueError("Classifier can't train when only one class is present. All deltas are either 0 or 1.")
@@ -127,7 +127,7 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
 
 
     def score(self, X, y, w=None, ntree_limit=0):
-        X, y    = check_X_y(X, y)
+        X, y    = check_X_y(X, y, force_all_finite='allow-nan')
         if w is None:
             w = np.zeros_like(y)
 
