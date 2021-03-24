@@ -7,7 +7,7 @@ What’s new (over BoXHED 1.0):
  - Significant speed improvement
  - multicore CPU and GPU support
 
-Please refer to the [BoXHED2.0 Paper](https://arxiv.org/abs/2103.12591) for details, which builds on [BoXHED1.0 Paper](http://proceedings.mlr.press/v119/wang20o/wang20o.pdf) (ICML 2020).
+Please refer to [BoXHED2.0 Paper](https://arxiv.org/abs/2103.12591) for details, which builds on [BoXHED1.0 Paper](http://proceedings.mlr.press/v119/wang20o/wang20o.pdf) (ICML 2020).
 
 ## Prerequisites
 The software developed and tested in Linux and Mac OS environments. The requirements are the following:
