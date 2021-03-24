@@ -1,4 +1,4 @@
-# BoXHED2.0Main
+# BoXHED2.0
 
 For information on the functionalities of BoXHED2.0, please refer to [BoXHED2.0 Paper](https://arxiv.org/abs/2103.12591) which is an extension of [BoXHED1.0 Paper](http://proceedings.mlr.press/v119/wang20o/wang20o.pdf) which was published in ICML 2020. This work extends BoXHED1.0 by handling far beyond right censored survival data, specifically Aalen’s multiplicative intensity setting which includes left truncation and recurrent events.
 
