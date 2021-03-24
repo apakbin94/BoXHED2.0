@@ -1,7 +1,5 @@
 # BoXHED2.0
 
-For information on the functionalities of BoXHED2.0, please refer to  which is an extension of .
-
 What’s new (over BoXHED 1.0):
  - Allows for survival data far beyond right censoring (specifically, Aalen’s multiplicative intensity setting). Examples include left truncation and recurrent events.
  - Significant speed improvement
