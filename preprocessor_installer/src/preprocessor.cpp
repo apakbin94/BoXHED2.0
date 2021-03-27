@@ -534,7 +534,7 @@ inline void _fill_quants (T* quant, size_t quant_per_column, size_t num_quants, 
     std::vector<T> acc_weight_vec (acc_weight, acc_weight + num_unique);
 
     if (num_unique <= quant_per_column){
-        for (size_t i = 0; i < num_quants; ++i){
+        for (size_t i = 0; i < num_unique; ++i){
             quant[col_idx*quant_per_column + i] = unique [i];
         }
         return;
@@ -575,8 +575,15 @@ inline void _fill_quants (T* quant, size_t quant_per_column, size_t num_quants, 
 
         quant[col_idx*quant_per_column + i] = unique[idx];
         */
-        if (quant[col_idx*quant_per_column + i] == quant[col_idx*quant_per_column + i - 1])
+        if ((i>0) && (quant[col_idx*quant_per_column + i] == quant[col_idx*quant_per_column + i - 1]))
+            {
+            /*
             throw std::invalid_argument("ERROR: An error has occured. Consider decreasing quant_per_column.");        
+            */
+            std::stringstream err_str;
+            err_str << "ERROR: An error has occured in column"<<" "<<col_idx<<" while extracting quantiles.";
+            throw std::invalid_argument(err_str.str());
+            }
     }
 }
 
@@ -625,7 +632,9 @@ inline void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, c
         std::sort(srtd_val_idx.begin(), srtd_val_idx.end(), 
                [](const std::pair<T, size_t> a, 
                   const std::pair<T, size_t> b)
-                 {return std::isnan(b.first) || a.first < b.first; }
+                 { 
+                 if (std::isnan(a.first) && std::isnan(b.first)) return false; 
+                   return std::isnan(b.first) || a.first < b.first; }
                  );
         
         T unique [vals_size];
