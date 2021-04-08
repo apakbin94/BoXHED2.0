@@ -434,20 +434,25 @@ inline void _copy_col2arr(const T* src, size_t nrows, size_t ncols,
 template <class T>
 inline void _compute_quant(const T* data, size_t nrows, size_t ncols, const bool* is_cat, size_t t_start_idx, size_t t_end_idx, size_t pat_idx, size_t delta_idx, T* quant, size_t* quant_size, size_t quant_per_column){
  
-    #pragma omp parallel for schedule(dynamic)
+    //#pragma omp parallel for schedule(dynamic)
     for (size_t col_idx = 0; col_idx<ncols; ++col_idx){
+        std::cout << col_idx << std::endl;
         if (is_cat[col_idx] || col_idx == t_end_idx || col_idx == pat_idx || col_idx == delta_idx){
             continue;
         }
         size_t vals_size = (col_idx==t_start_idx) ? 2*nrows : nrows;
+
+        /*
         T vals [vals_size];
+        */
+        T *vals = new T[vals_size];
 
         _copy_col2arr(data, nrows, ncols, col_idx, vals);
         if (col_idx == t_start_idx){
             _copy_col2arr(data, nrows, ncols, t_end_idx, vals + nrows);
         }
 
-        std::sort(vals, vals+vals_size,
+        std::stable_sort(vals, vals+vals_size,
                [](const T a, 
                   const T b)
                  {return std::isnan(b) || a < b;}
@@ -462,6 +467,7 @@ inline void _compute_quant(const T* data, size_t nrows, size_t ncols, const bool
         for (size_t i=0; i<num_quants; ++i){
             quant[col_idx*quant_per_column+i] = vals[static_cast<int>(num_unique*i/num_quants)];
         }
+        delete [] vals;
                 
     }
 
@@ -528,10 +534,38 @@ inline void _fill_non_time_acc_weight(const std::vector<std::pair<T, size_t>> &s
 
 
 template <class T>
-inline void _fill_quants (T* quant, size_t quant_per_column, size_t num_quants, size_t col_idx,
+void _fill_quants (T* quant, size_t quant_per_column, size_t num_quants, size_t col_idx,
                           T* unique, T* acc_weight, size_t num_unique){
 
+    std::cout << "-1" << std::endl;
+    std::cout << col_idx << std::endl;
+    if (col_idx == 1){
+        std::cout << "returning because it's time" << std::endl;
+        return;
+    }
+    
+    /*
     std::vector<T> acc_weight_vec (acc_weight, acc_weight + num_unique);
+    */
+    
+    std::vector<T> *acc_weight_vec = new std::vector<T>;
+    
+    /*
+    std::cout << "max val: " << acc_weight_vec->max_size() << ", actual: " << num_unique << std::endl;
+
+    std::cout << "0" << std::endl;
+    */
+    acc_weight_vec -> resize(500);
+    std::cout << "resized ! "<< std::endl;
+    /*
+    acc_weight_vec -> resize(num_unique);
+    std::cout << "-0" << std::endl;
+
+    for (size_t i = 0; i<num_unique; ++i){
+        (*acc_weight_vec)[i] = acc_weight[i];
+    }
+    std::cout << "-2" << std::endl;
+    */
 
     if (num_unique <= quant_per_column){
         for (size_t i = 0; i < num_unique; ++i){
@@ -540,20 +574,34 @@ inline void _fill_quants (T* quant, size_t quant_per_column, size_t num_quants, 
         return;
     }
 
+    std::cout << "-3" << std::endl;
 
     //TODO: loop can be optimized by providing lower bound
     for (size_t i = 0; i<num_quants; ++i){
         const T quant_to_select = static_cast<T>(i)/num_quants;
+        /*
         auto iter  = std::lower_bound(acc_weight_vec.begin(), acc_weight_vec.end(), quant_to_select);
         size_t idx = static_cast<size_t>(max(--iter, acc_weight_vec.begin()) - acc_weight_vec.begin());
+        */
+        
+        auto iter  = std::lower_bound(acc_weight_vec -> begin(), acc_weight_vec -> end(), quant_to_select);
+        size_t idx = static_cast<size_t>(max(--iter, acc_weight_vec->begin()) - acc_weight_vec->begin());
+        
+
         
         T val   = unique[idx];
         T val_n = (idx < num_unique-1) ? unique[idx+1] : 
                                          unique[idx]+1;
-
+        /* 
         T w     = acc_weight_vec[idx];
         T w_n   = (idx < num_unique-1) ? acc_weight_vec[idx+1] : 
-                                         acc_weight_vec[idx]+1;
+                                         acc_weight_vec[idx]+1; 
+        */
+        
+        T w     = (*acc_weight_vec)[idx];
+        T w_n   = (idx < num_unique-1) ? (*acc_weight_vec)[idx+1] : 
+                                         (*acc_weight_vec)[idx]+1;
+        
 
         T q;
 
@@ -585,6 +633,9 @@ inline void _fill_quants (T* quant, size_t quant_per_column, size_t num_quants, 
             throw std::invalid_argument(err_str.str());
             }
     }
+    acc_weight_vec -> clear();
+    //delete acc_weight_vec;
+    //acc_weight_vec.clear();
 }
 
 
@@ -607,17 +658,24 @@ inline void normalize (T* arr, size_t size, T norm_factor){
 }
 
 template <class T>
-inline void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, const bool* is_cat, size_t t_start_idx, size_t t_end_idx, size_t pat_idx, size_t delta_idx, T* quant, size_t* quant_size, size_t quant_per_column){
+void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, const bool* is_cat, size_t t_start_idx, size_t t_end_idx, size_t pat_idx, size_t delta_idx, T* quant, size_t* quant_size, size_t quant_per_column){
+
+    throw std::invalid_argument("NOT IMPLEMENTED: Use the non-weighted version for now please.");
+
 
     T total_t = _compute_total_t(data, nrows, ncols, t_start_idx, t_end_idx);
     
     #pragma omp parallel for schedule(dynamic)
     for (size_t col_idx = 0; col_idx<ncols; ++col_idx){
+        std::cout<<"col:"<<col_idx<<std::endl;
         if (is_cat[col_idx] || col_idx == t_end_idx || col_idx == pat_idx || col_idx == delta_idx){
             continue;
         }
         size_t vals_size = (col_idx==t_start_idx) ? 2*nrows : nrows;
+        /*
         T vals [vals_size];
+        */
+        T *vals = new T[vals_size];
 
         std::vector<std::pair<T, size_t>> srtd_val_idx (vals_size);
 
@@ -629,6 +687,9 @@ inline void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, c
         for (size_t i=0; i<vals_size; ++i){
             srtd_val_idx [i] = std::make_pair(vals[i], i);
         }
+
+        delete [] vals;
+
         std::sort(srtd_val_idx.begin(), srtd_val_idx.end(), 
                [](const std::pair<T, size_t> a, 
                   const std::pair<T, size_t> b)
@@ -637,25 +698,39 @@ inline void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, c
                    return std::isnan(b.first) || a.first < b.first; }
                  );
         
+        /*
         T unique [vals_size];
+        */
+        T *unique = new T [vals_size];
         size_t num_unique;
         _rmv_dupl_srtd(srtd_val_idx, unique, &num_unique);
         
         size_t num_quants = std::min(num_unique, quant_per_column);
         quant_size [col_idx] = num_quants;
 
+        /*
         size_t vals_hist [num_unique];
         std::fill_n(vals_hist, num_unique, 0);
+        */
 
+        std::cout<<"num uniq: "<<num_unique<<std::endl;
+        /*
         T acc_weight [num_unique];
+        */
+        T *acc_weight = new T[num_unique];
 
-        if (col_idx == t_start_idx){
+        if (col_idx == t_start_idx){ 
+            size_t *vals_hist = new size_t [num_unique];
+            std::fill_n(vals_hist, num_unique, 0);
+
             _fill_time_hist(unique, num_unique, 
                             data, nrows, ncols,
                             t_start_idx, t_end_idx, //pat_idx,
                             vals_hist);
-
+            /*
             T time_diff [num_unique];
+            */
+            T *time_diff = new T[num_unique];
 
             std::adjacent_difference (unique, unique+num_unique, time_diff);
 
@@ -664,6 +739,7 @@ inline void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, c
                 acc_weight [i] = acc_weight[i-1] + time_diff[i] * vals_hist [i-1];
             }
                         
+            delete [] time_diff;
         }
         else{
             _fill_non_time_acc_weight(srtd_val_idx, 
@@ -676,6 +752,9 @@ inline void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, c
 
         _fill_quants (quant, quant_per_column, num_quants, col_idx,
                           unique, acc_weight, num_unique);        
+        delete [] unique;
+        delete [] acc_weight;
+        srtd_val_idx.clear();
     }
 }
 
