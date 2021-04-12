@@ -23,7 +23,7 @@ check_success
 
 echo "${OPEN}running cmake for boxhed in ${DIR}/boxhed.kernel/build/${CLOSE}"
 cd "${DIR}/boxhed.kernel/build/"
-cmake .. -DUSE_CUDA=OFF >> ${setup_log} 2>&1
+cmake .. -DUSE_CUDA=ON >> ${setup_log} 2>&1
 check_success
 
 echo "${OPEN}running make for boxhed in ${DIR}/boxhed.kernel/build/${CLOSE}"
