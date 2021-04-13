@@ -6,7 +6,7 @@ import pandas as pd
 class preprocessor:
 
     class c_boundary_info (Structure):
-        _fields_ = [("npatients", c_size_t), 
+        _fields_ = [("nsubjects", c_size_t), 
                     ("out_nrows", c_size_t), 
                     ("in_lbs",    c_void_p),
                     ("out_lbs",   c_void_p)]
@@ -38,7 +38,7 @@ class preprocessor:
                 c_void_p, #data_v
                 c_size_t, #nrows
                 c_size_t, #ncols
-                c_size_t, #npatients
+                c_size_t, #nsubjects
                 c_size_t, #pat_col_idx
                 c_size_t, #t_start_idx
                 c_size_t, #t_end_idx
@@ -84,7 +84,7 @@ class preprocessor:
 
     def _get_col_indcs(self):
         self.t_start_idx = self.colnames.index('t_start')
-        self.pat_idx     = self.colnames.index('patient')
+        self.pat_idx     = self.colnames.index('subject')
         self.t_end_idx   = self.colnames.index('t_end')
         self.delta_idx   = self.colnames.index('delta') #TODO: either 0 or 1
 
@@ -124,7 +124,7 @@ class preprocessor:
             c_void_p(self.data.ctypes.data), 
             c_size_t(self.nrows), 
             c_size_t(self.ncols), 
-            c_size_t(self.npatients), 
+            c_size_t(self.nsubjects), 
             c_size_t(self.pat_idx), 
             c_size_t(self.t_start_idx), 
             c_size_t(self.t_end_idx), 
@@ -160,29 +160,29 @@ class preprocessor:
         self._cnvrt_colnames(); 
 
         self.preprocessed = pd.DataFrame(self.preprocessed, columns = self.colnames)
-        self.subjects     = self.preprocessed['patient']
+        self.subjects     = self.preprocessed['subject']
         #self.y           = self.preprocessed[['delta', 'dt']]
         self.w            = self.preprocessed['dt']
         self.delta        = self.preprocessed['delta']
-        self.X            = self.preprocessed.drop(columns = ['patient', 'delta', 'dt'])
+        self.X            = self.preprocessed.drop(columns = ['subject', 'delta', 'dt'])
         
 
     def _set_lbs_ubs_ptrs(self):
-        self.in_lbs   = (c_size_t * (self.bndry_info.npatients+1)).from_address(self.bndry_info.in_lbs)
-        self.out_lbs  = (c_size_t * (self.bndry_info.npatients+1)).from_address(self.bndry_info.out_lbs)
+        self.in_lbs   = (c_size_t * (self.bndry_info.nsubjects+1)).from_address(self.bndry_info.in_lbs)
+        self.out_lbs  = (c_size_t * (self.bndry_info.nsubjects+1)).from_address(self.bndry_info.out_lbs)
     
 
     def _data_sanity_check(self):
         assert self.data.ndim==2,"ERROR: data needs to be 2 dimensional"
-        assert self.data['patient'].between(1, self.npatients).all(),"ERROR: Patients need to be numbered from 1 to # patients"
+        assert self.data['subject'].between(1, self.nsubjects).all(),"ERROR: Patients need to be numbered from 1 to # subjects"
 
     def _setup_data(self):
 
-        #making sure patient data is contiguous
-        self.data.sort_values(by=['patient', 't_start'], inplace = True)
+        #making sure subject data is contiguous
+        self.data.sort_values(by=['subject', 't_start'], inplace = True)
 
         self.colnames  = list(self.data.columns)
-        self.npatients = self.data['patient'].nunique()
+        self.nsubjects = self.data['subject'].nunique()
 
         self._data_sanity_check()
         self._get_col_indcs()

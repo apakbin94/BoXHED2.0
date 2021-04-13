@@ -13,14 +13,14 @@ template<class T>
 class df;
 
 typedef struct boundary_info_{
-    boundary_info_(size_t npatients_, size_t out_nrows_, size_t* in_lbs_, size_t* out_lbs_):
-        npatients(npatients_),
+    boundary_info_(size_t nsubjects_, size_t out_nrows_, size_t* in_lbs_, size_t* out_lbs_):
+        nsubjects(nsubjects_),
         out_nrows(out_nrows_),
         in_lbs(in_lbs_),
         out_lbs(out_lbs_)
         {}
 
-    size_t  npatients;
+    size_t  nsubjects;
     size_t  out_nrows;
     size_t* in_lbs;
     size_t* out_lbs;
@@ -58,7 +58,7 @@ boundary_info* get_boundaries(
         const void* data_v, 
         size_t nrows, 
         size_t ncols, 
-        size_t npatients, 
+        size_t nsubjects, 
         size_t pat_col_idx, 
         size_t t_start_idx, 
         size_t t_end_idx, 

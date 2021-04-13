@@ -10,16 +10,16 @@ import math
 from scipy.stats import beta # beta distribution.
 from scipy.stats import norm # normal distribution.
 
-DATA_ADDRESS = "./synth_files/"
+DATA_ADDRESS = "./synth_files/general_censoring/"
 RSLT_ADDRESS = "./results/"
 
-for addr in [DATA_ADDRESS, RSLT_ADDRESS]:
+for addr in [RSLT_ADDRESS]:
     create_dir_if_not_exist(addr)
 
 #TODO: get these from command line?
-num_quant   = 256
-grid_search = False#True
-use_gpu     = False
+num_quantiles   = 256
+grid_search     = False#True
+use_gpu         = False
 
 # when CPU hist is used, the batch size would be num_gpu * model_per_gpu
 num_gpus = [1]#[4, 6]
@@ -121,81 +121,64 @@ def TrueHaz(traj, ind_exp):
     return result
 
 
+def cols_to_include (col_names, num_irr):
+    col_included = []
+    for col in col_names:
+        if not col.startswith("X_"):
+            col_included.append(True)
+        else:
+            col_included.append(col <= "X_%d"%num_irr)
+    return col_included
+
+
 @exec_if_not_cached
-def _read_synth(ind_exp, num_irrelevant):
-    datname = 'data_exp' + str(ind_exp) + '_numIrr' + str(num_irrelevant)
-
-    long_lotraj = pd.read_csv(os.path.join(DATA_ADDRESS, 'train_long_lotraj_exp%d_numIrr_40.csv'%(ind_exp)), sep=',', header=None) 
-
-
-    long_lotraj = long_lotraj.iloc[:,0:num_irrelevant+3]#.head(20)
-    long_lotraj.columns = ['patient', 't_start']+["X_%i"%i for i in range(1, num_irrelevant+2)]
-
-    long_lotraj['t_end'] = long_lotraj['t_start'].shift(-1)
-    long_lotraj['delta'] = 0
-
-    delta = pd.read_csv(os.path.join(DATA_ADDRESS, 'train_delta_exp%d_numIrr_40.csv'%(ind_exp)), sep=',', header=None).values.reshape(-1)
-
-    TOTALTIME = 0.0
-    pat_data_list = []
-    for pat, pat_data in long_lotraj.groupby('patient'):
-        pat_data.drop(pat_data.tail(1).index,inplace=True)
-        pat_data['delta'].iloc[-1] = delta[pat-1]
-        
-        pat_data_list.append(pat_data)
-        TOTALTIME += pat_data['t_end'].iloc[-1]-pat_data['t_start'].iloc[0]
-    
-    data = pd.concat(pat_data_list, ignore_index = True)
-    data = data[['patient', 't_start', 't_end'] + ["X_%i"%i for i in range(1, num_irrelevant+2)] + ['delta']]
-
-    F0 = np.log(np.sum(delta)/TOTALTIME)
+def _read_synth(ind_exp, num_irr):
+    data = pd.read_csv(os.path.join(DATA_ADDRESS, "exp_%d__num_irr_40__train.csv"%ind_exp))
+    col_included = cols_to_include(data.columns, num_irr)
+    data = data.loc[:, col_included]
 
     return data
 
 @exec_if_not_cached
-def _read_synth_test(ind_exp, num_irrelevant):
-    dataname =  'exp' + str(ind_exp) + '_numIrr_%d'
-    data = pd.read_csv(os.path.join(DATA_ADDRESS, 'test_random_pick_' + dataname%40 +  '.csv'), sep=',', header=None)
+def _read_synth_test(ind_exp, num_irr):
+    data = pd.read_csv(os.path.join(DATA_ADDRESS, "exp_%d__num_irr_40__test.csv"%ind_exp))
+    col_included = cols_to_include(data.columns, num_irr)
 
-    data = data.iloc[:,0:num_irrelevant+2]
-    data.columns = ['t_start']+["X_%i"%i for i in range(1, num_irrelevant+2)]
+    data = data.loc[:, col_included]
+
+    col_included = []
+    for col in data.columns:
+        if col == "t_start" or col.startswith("X_"):
+            col_included.append(True)
+        else:
+            col_included.append(False)
+    data = data.loc[:, col_included]
     
-    true_haz = TrueHaz(data.values, ind_exp)
+    true_haz = TrueHaz(data.values, 40+ind_exp)
 
     return true_haz, data
 
 
 
 hyperparams = {
-        "41_0" : {'max_depth':1, 'n_estimators':300},
-        "41_20": {'max_depth':1, 'n_estimators':200},
-        "41_40": {'max_depth':1, 'n_estimators':250},
-        "42_0" : {'max_depth':1, 'n_estimators':300},
-        "42_20": {'max_depth':1, 'n_estimators':250},
-        "42_40": {'max_depth':1, 'n_estimators':250},
-        "43_0" : {'max_depth':2, 'n_estimators':150},
-        "43_20": {'max_depth':2, 'n_estimators':50},
-        "43_40": {'max_depth':2, 'n_estimators':50},
-        "44_0" : {'max_depth':1, 'n_estimators':300},
-        "44_20": {'max_depth':1, 'n_estimators':150},
-        "44_40": {'max_depth':1, 'n_estimators':200}
+        "1_0" : {'max_depth':1, 'n_estimators':300},
+        "1_20": {'max_depth':1, 'n_estimators':200},
+        "1_40": {'max_depth':1, 'n_estimators':250},
+        "2_0" : {'max_depth':1, 'n_estimators':300},
+        "2_20": {'max_depth':1, 'n_estimators':250},
+        "2_40": {'max_depth':1, 'n_estimators':250},
+        "3_0" : {'max_depth':2, 'n_estimators':150},
+        "3_20": {'max_depth':2, 'n_estimators':50},
+        "3_40": {'max_depth':2, 'n_estimators':50},
+        "4_0" : {'max_depth':1, 'n_estimators':300},
+        "4_20": {'max_depth':1, 'n_estimators':150},
+        "4_40": {'max_depth':1, 'n_estimators':200}
 }
 
 
-def drop_rows(data, prob=0.5):
-    data_sub = data.sample(frac=prob, random_state = np.random.RandomState(), replace=False).sort_index()
-    
-    patient_converter = dict(
-                            zip(sorted(data_sub['patient'].unique()), 
-                            range(1, 1+data_sub['patient'].nunique()))
-                            )
-
-    data_sub = data_sub.replace({'patient':patient_converter})
-
-    return data_sub
 
 @run_as_process
-def grid_search_test_synth(ind_exp, num_irr, num_gpu, model_per_gpu, keep_prob):
+def grid_search_test_synth(ind_exp, num_irr, num_gpu, model_per_gpu):
         
     #from sklearn.utils.estimator_checks import check_estimator
     #check_estimator(boxhed())
@@ -209,37 +192,19 @@ def grid_search_test_synth(ind_exp, num_irr, num_gpu, model_per_gpu, keep_prob):
             'model_per_gpu': model_per_gpu}
 
     data = _read_synth(ind_exp, num_irr)
-    #data = pd.read_csv("TEST.txt")
-    #print (data)
-
-    data = drop_rows(data, keep_prob)
-    rslt["keep_prob"] = keep_prob
-    #num_quant = 10
     
     boxhed_ = boxhed()
-    '''
-    prep = preprocessor()
-    '''
-    rslt['num_quant'] = num_quant
+    rslt['num_quantiles'] = num_quantiles
     prep_timer = timer()
 
     subjects, X, w, delta = boxhed_.preprocess(
             data             = data, 
             #is_cat           = [4],
-            quant_per_column = num_quant, 
-            weighted         = True, 
-            nthreads         = 1)
-
-    '''
-    subjects, X, w, delta = prep.preprocess(
-            data             = data, 
-            quant_per_column = num_quant, 
-            weighted         = True, 
-            nthreads         = 1)
-    '''
+            quant_per_column = num_quantiles, 
+            weighted         = False, 
+            nthreads         = -1)
 
     rslt["prep_time"] = prep_timer.get_dur()
-    #raise
     
     if use_gpu:
         gpu_list = _get_free_gpu_list(num_gpu)
@@ -247,7 +212,6 @@ def grid_search_test_synth(ind_exp, num_irr, num_gpu, model_per_gpu, keep_prob):
         gpu_list = [-1] 
 
     if grid_search:
-        #TODO fix y to delta,w in grid search
         gridsearch_timer = timer()
         #TODO: handle memory exception if model_per_gpu too large
         cv_rslts, best_params = collapsed_ntree_gs(boxhed(), 
@@ -272,7 +236,6 @@ def grid_search_test_synth(ind_exp, num_irr, num_gpu, model_per_gpu, keep_prob):
 
     rslt.update(best_params)
      
-    #boxhed_ = boxhed(**best_params)
     boxhed_.set_params (**best_params)
 
     fit_timer = timer()
@@ -284,11 +247,9 @@ def grid_search_test_synth(ind_exp, num_irr, num_gpu, model_per_gpu, keep_prob):
     true_haz, test_X = _read_synth_test(ind_exp, num_irr) 
 
     pred_timer = timer()
-    #test_X = prep.fix_data_on_boundaries(test_X)
     preds = boxhed_.predict(test_X)
     rslt["pred_time"] = pred_timer.get_dur()
 
-    #print (np.array(abs(true_haz-preds)).mean(axis=None))
     rslt["rmse"] = "%.3f"%(np.sqrt(np.square(true_haz - preds).mean(axis=None)))
 
     _L2 = calc_L2(preds, true_haz)
@@ -312,39 +273,27 @@ if __name__ == "__main__":
     rslts = []
     for num_gpu in num_gpus:
         for model_per_gpu in model_per_gpus:
-            for keep_prob in keep_probs:
  
-                #TODO: tqdm
-                for ind_exp in [41, 42, 43, 44]:
-                    for num_irr in [0,20,40]:
+            #TODO: tqdm
+            for ind_exp in [1, 2, 3, 4]:
+                for num_irr in [0,20,40]:
 
-                        num_bs_ = num_bs
-                        if keep_prob == 1:
-                            num_bs_ = 1
-                        for it in range(num_bs_):
-                            print ('    exp:      ', ind_exp)
-                            print ('    num_irr:  ', num_irr)
-                            print ('    num GPU:  ', num_gpu)
-                            print ('    /GPU:     ', model_per_gpu)
-                            print ('    keep_prob:', keep_prob)
-                            print ('    bs it/all:', "%d/%d"%(it+1,num_bs_))
-                            print ("")
+                    print ('    exp:      ', ind_exp)
+                    print ('    num_irr:  ', num_irr)
+                    print ('    num GPU:  ', num_gpu)
+                    print ('    /GPU:     ', model_per_gpu)
+                    print ("")
 
-                            rslt = grid_search_test_synth(ind_exp, 
-                                                          num_irr,
-                                                          num_gpu, 
-                                                          model_per_gpu,
-                                                          keep_prob)
+                    rslt = grid_search_test_synth(ind_exp, 
+                                                  num_irr,
+                                                  num_gpu, 
+                                                  model_per_gpu)
 
-                            print (rslt, "\n"*3, rslt["rmse"], "\n"*2, sep="")
-                            ####
-                            #it_file_name = "_it=%d__"%(it+1)+_rslt_file_name("num_quant", "ind_exp", "num_irr", "keep_prob")
-                            #pd.DataFrame([rslt]).to_csv(os.path.join(RSLT_ADDRESS, it_file_name),index = None)
-                            ####
-                            rslts.append(rslt)
+                    print (rslt, "\n"*3, rslt["rmse"], "\n"*2, sep="")
+                    rslts.append(rslt)
 
     rslt_df = pd.DataFrame(rslts)
-    rslt_df_file_name = _rslt_file_name("num_quant", "use_gpu", "grid_search", "num_gpus", "model_per_gpus", "keep_probs")
+    rslt_df_file_name = _rslt_file_name("num_quantiles", "use_gpu", "grid_search", "num_gpus", "model_per_gpus", "keep_probs")
 
     print (rslt_df)
     rslt_df.to_csv(os.path.join(RSLT_ADDRESS, rslt_df_file_name),

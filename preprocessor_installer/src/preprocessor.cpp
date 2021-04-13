@@ -61,7 +61,7 @@ class preprocessor{
             ncols(ncols_),
             is_cat(is_cat_),
             bndry_info(bndry_info_),
-            npatients(bndry_info->npatients),
+            nsubjects(bndry_info->nsubjects),
             out_data(out_data_),
             out_nrows(bndry_info->out_nrows),
             tquant(std::vector<T>(
@@ -141,10 +141,10 @@ class preprocessor{
             quantize_non_time_columns();
 
             #pragma omp parallel for schedule(static)
-            for (size_t pat_idx=0; pat_idx<npatients; ++pat_idx){
+            for (size_t pat_idx=0; pat_idx<nsubjects; ++pat_idx){
             
                 try {
-                    _preprocess_one_patient(pat_idx);
+                    _preprocess_one_subject(pat_idx);
                 } catch (std::invalid_argument& e){
                     err<<e.what()<<std::endl;
                     throw;
@@ -154,7 +154,7 @@ class preprocessor{
 
     private:
         /*
-        maybe for posterity if we want to not include patient number
+        maybe for posterity if we want to not include subject number
         */
         /*
         inline int _cnvrt_out_col(int col_idx){
@@ -164,7 +164,7 @@ class preprocessor{
         }
         */
 
-        inline void _preprocess_one_patient (size_t pat_idx){
+        inline void _preprocess_one_subject (size_t pat_idx){
             
             //const pat_lb_ub* _pat_lb_ub  = &pat_lb_ubs[pat_idx];
             const size_t in_lb  = bndry_info->in_lbs[pat_idx];
@@ -242,7 +242,7 @@ class preprocessor{
             }
             if (out_row-1 != out_ub){
                 std::stringstream err_str;
-                err_str << "ERROR: loop reached its end for patient index"<<" "<<pat_idx<<"."<<" Check the corresponding patient data.";
+                err_str << "ERROR: loop reached its end for subject index"<<" "<<pat_idx<<"."<<" Check the corresponding subject data.";
                 throw std::invalid_argument(err_str.str());
             }
         }
@@ -253,7 +253,7 @@ class preprocessor{
         const bool* is_cat;
         const boundary_info* bndry_info;
 
-        const size_t npatients;
+        const size_t nsubjects;
 
         T* out_data;
         const size_t out_nrows;
@@ -278,11 +278,11 @@ class pat_lb_ub_calculator{
 
     public:
 
-        pat_lb_ub_calculator(const T* data_, const size_t nrows_, const size_t ncols_, const size_t npatients_, const T* quant_arr, const size_t* quant_size, const size_t quant_per_column, const size_t t_start_idx_, const size_t pat_col_idx_, size_t t_end_idx_):
+        pat_lb_ub_calculator(const T* data_, const size_t nrows_, const size_t ncols_, const size_t nsubjects_, const T* quant_arr, const size_t* quant_size, const size_t quant_per_column, const size_t t_start_idx_, const size_t pat_col_idx_, size_t t_end_idx_):
             data(data_),
             nrows(nrows_),
             ncols(ncols_),
-            npatients(npatients_),
+            nsubjects(nsubjects_),
             tquant(std::vector<T>(
                         quant_arr+t_start_idx_*quant_per_column, 
                         quant_arr+t_start_idx_*quant_per_column
@@ -290,8 +290,8 @@ class pat_lb_ub_calculator{
             t_start_idx(t_start_idx_),
             pat_col_idx(pat_col_idx_),
             t_end_idx(t_end_idx_),
-            in_lbs(new size_t[npatients+1]),
-            out_lbs(new size_t[npatients+1])
+            in_lbs(new size_t[nsubjects+1]),
+            out_lbs(new size_t[nsubjects+1])
             {}
 
 
@@ -301,46 +301,46 @@ class pat_lb_ub_calculator{
 
         boundary_info* get_boundaries(){
             _get_boundaries();
-            boundary_info* bndry_info = new boundary_info(npatients, out_nrows, in_lbs, out_lbs);
+            boundary_info* bndry_info = new boundary_info(nsubjects, out_nrows, in_lbs, out_lbs);
             return bndry_info;
         }
 
     private:
 
          void _get_boundaries(){
-            //XXX: assuming data of patients in chronological order, and contiguous
-            //XXX: now assuming patient ids from one to N
+            //XXX: assuming data of subjects in chronological order, and contiguous
+            //XXX: now assuming subject ids from one to N
 
-            int last_patient=1, curr_patient = 1;
+            int last_subject=1, curr_subject = 1;
             size_t in_lb  = 0;
             size_t out_lb = 0;
 
             for (size_t row=0; row<nrows; ++row){
-                curr_patient = data[row*ncols+pat_col_idx];
+                curr_subject = data[row*ncols+pat_col_idx];
 
-                if (curr_patient == last_patient)
+                if (curr_subject == last_subject)
                     continue;
 
                 size_t out_len = _out_len(in_lb, row-1);
 
-                //_pat_lb_ubs[last_patient-1].set(last_patient, in_lb, row-1, out_lb, out_lb+out_len-1);
-                in_lbs[last_patient-1]=in_lb;
-                out_lbs[last_patient-1]=out_lb;
+                //_pat_lb_ubs[last_subject-1].set(last_subject, in_lb, row-1, out_lb, out_lb+out_len-1);
+                in_lbs[last_subject-1]=in_lb;
+                out_lbs[last_subject-1]=out_lb;
 
                 in_lb = row;
                 out_lb += out_len;
-                last_patient = curr_patient;
+                last_subject = curr_subject;
             }
 
             size_t out_len = _out_len(in_lb, nrows-1);
             size_t last_ub = out_lb + out_len;
 
-            //_pat_lb_ubs[last_patient-1].set(last_patient, in_lb, nrows-1, out_lb, last_ub);
-            in_lbs[last_patient-1]=in_lb;
-            out_lbs [last_patient-1]=out_lb;
+            //_pat_lb_ubs[last_subject-1].set(last_subject, in_lb, nrows-1, out_lb, last_ub);
+            in_lbs[last_subject-1]=in_lb;
+            out_lbs [last_subject-1]=out_lb;
 
-            in_lbs[last_patient]=nrows;
-            out_lbs[last_patient]=last_ub;
+            in_lbs[last_subject]=nrows;
+            out_lbs[last_subject]=last_ub;
 
             out_nrows  = last_ub;
             //pat_lb_ubs = _pat_lb_ubs;
@@ -368,7 +368,7 @@ class pat_lb_ub_calculator{
         const T* data;
         const size_t nrows;
         const size_t ncols;
-        const size_t npatients;
+        const size_t nsubjects;
         std::vector<T> tquant;
 
         size_t t_start_idx;
@@ -436,7 +436,6 @@ inline void _compute_quant(const T* data, size_t nrows, size_t ncols, const bool
  
     //#pragma omp parallel for schedule(dynamic)
     for (size_t col_idx = 0; col_idx<ncols; ++col_idx){
-        std::cout << col_idx << std::endl;
         if (is_cat[col_idx] || col_idx == t_end_idx || col_idx == pat_idx || col_idx == delta_idx){
             continue;
         }
@@ -808,7 +807,7 @@ boundary_info* get_boundaries(
         const void* data_v, 
         size_t nrows, 
         size_t ncols, 
-        size_t npatients, 
+        size_t nsubjects, 
         size_t pat_col_idx, 
         size_t t_start_idx, 
         size_t t_end_idx, 
@@ -821,7 +820,7 @@ boundary_info* get_boundaries(
     const double* quant_arr  = (double *) quant_v;
     const size_t* quant_size = (size_t *) quant_size_v;
        
-    pat_lb_ub_calculator<double> pat_lb_ub_calculator_ = pat_lb_ub_calculator<double>(data, nrows, ncols, npatients, quant_arr, quant_size, quant_per_column, t_start_idx, pat_col_idx, t_end_idx);
+    pat_lb_ub_calculator<double> pat_lb_ub_calculator_ = pat_lb_ub_calculator<double>(data, nrows, ncols, nsubjects, quant_arr, quant_size, quant_per_column, t_start_idx, pat_col_idx, t_end_idx);
 
     return pat_lb_ub_calculator_.get_boundaries();
 
