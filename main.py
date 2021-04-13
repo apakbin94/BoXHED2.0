@@ -23,7 +23,7 @@ use_gpu         = False
 
 # when CPU hist is used, the batch size would be num_gpu * model_per_gpu
 num_gpus = [1]#[4, 6]
-model_per_gpus = [20]#[8, 10]
+model_per_gpu_list = [20]#[8, 10]
 keep_probs = [0.7, 0.8, 0.9, 1]
 num_bs     = 20
 
@@ -272,7 +272,7 @@ if __name__ == "__main__":
     
     rslts = []
     for num_gpu in num_gpus:
-        for model_per_gpu in model_per_gpus:
+        for model_per_gpu in model_per_gpu_list:
  
             #TODO: tqdm
             for ind_exp in [1, 2, 3, 4]:
@@ -293,7 +293,7 @@ if __name__ == "__main__":
                     rslts.append(rslt)
 
     rslt_df = pd.DataFrame(rslts)
-    rslt_df_file_name = _rslt_file_name("num_quantiles", "use_gpu", "grid_search", "num_gpus", "model_per_gpus", "keep_probs")
+    rslt_df_file_name = _rslt_file_name("num_quantiles", "use_gpu", "grid_search", "num_gpus", "model_per_gpu_list", "keep_probs")
 
     print (rslt_df)
     rslt_df.to_csv(os.path.join(RSLT_ADDRESS, rslt_df_file_name),
