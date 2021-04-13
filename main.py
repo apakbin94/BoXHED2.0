@@ -132,16 +132,16 @@ def cols_to_include (col_names, num_irr):
 
 
 @exec_if_not_cached
-def _read_synth(ind_exp, num_irr):
-    data = pd.read_csv(os.path.join(DATA_ADDRESS, "exp_%d__num_irr_40__train.csv"%ind_exp))
+def _read_synth(exp_num, num_irr):
+    data = pd.read_csv(os.path.join(DATA_ADDRESS, "exp_%d__num_irr_40__train.csv"%exp_num))
     col_included = cols_to_include(data.columns, num_irr)
     data = data.loc[:, col_included]
 
     return data
 
 @exec_if_not_cached
-def _read_synth_test(ind_exp, num_irr):
-    data = pd.read_csv(os.path.join(DATA_ADDRESS, "exp_%d__num_irr_40__test.csv"%ind_exp))
+def _read_synth_test(exp_num, num_irr):
+    data = pd.read_csv(os.path.join(DATA_ADDRESS, "exp_%d__num_irr_40__test.csv"%exp_num))
     col_included = cols_to_include(data.columns, num_irr)
 
     data = data.loc[:, col_included]
@@ -154,7 +154,7 @@ def _read_synth_test(ind_exp, num_irr):
             col_included.append(False)
     data = data.loc[:, col_included]
     
-    true_haz = TrueHaz(data.values, 40+ind_exp)
+    true_haz = TrueHaz(data.values, 40+exp_num)
 
     return true_haz, data
 
@@ -178,7 +178,7 @@ hyperparams = {
 
 
 @run_as_process
-def grid_search_test_synth(ind_exp, num_irr, num_gpu, model_per_gpu):
+def grid_search_test_synth(exp_num, num_irr, num_gpu, model_per_gpu):
         
     #from sklearn.utils.estimator_checks import check_estimator
     #check_estimator(boxhed())
@@ -186,12 +186,12 @@ def grid_search_test_synth(ind_exp, num_irr, num_gpu, model_per_gpu):
     param_grid = {'max_depth':    [1, 2, 3, 4, 5],
                   'n_estimators': [50, 100, 150, 200, 250, 300]}
 
-    rslt = {'ind_exp':       ind_exp, 
+    rslt = {'exp_num':       exp_num, 
             'num_irr':       num_irr, 
             'num_gpu':       num_gpu, 
             'model_per_gpu': model_per_gpu}
 
-    data = _read_synth(ind_exp, num_irr)
+    data = _read_synth(exp_num, num_irr)
     
     boxhed_ = boxhed()
     rslt['num_quantiles'] = num_quantiles
@@ -227,7 +227,7 @@ def grid_search_test_synth(ind_exp, num_irr, num_gpu, model_per_gpu):
     
         rslt["GS_time"] = gridsearch_timer.get_dur()
     else:
-        best_params = hyperparams["%d_%d"%(ind_exp, num_irr)]
+        best_params = hyperparams["%d_%d"%(exp_num, num_irr)]
 
     best_params['gpu_id'] = gpu_list[0]
 
@@ -244,7 +244,7 @@ def grid_search_test_synth(ind_exp, num_irr, num_gpu, model_per_gpu):
 
     #TODO: set __all__ for the scripts
 
-    true_haz, test_X = _read_synth_test(ind_exp, num_irr) 
+    true_haz, test_X = _read_synth_test(exp_num, num_irr) 
 
     pred_timer = timer()
     preds = boxhed_.predict(test_X)
@@ -275,16 +275,16 @@ if __name__ == "__main__":
         for model_per_gpu in model_per_gpu_list:
  
             #TODO: tqdm
-            for ind_exp in [1, 2, 3, 4]:
+            for exp_num in [1, 2, 3, 4]:
                 for num_irr in [0,20,40]:
 
-                    print ('    exp:      ', ind_exp)
+                    print ('    exp:      ', exp_num)
                     print ('    num_irr:  ', num_irr)
                     print ('    num GPU:  ', num_gpu)
                     print ('    /GPU:     ', model_per_gpu)
                     print ("")
 
-                    rslt = grid_search_test_synth(ind_exp, 
+                    rslt = grid_search_test_synth(exp_num, 
                                                   num_irr,
                                                   num_gpu, 
                                                   model_per_gpu)
