@@ -35,12 +35,12 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
     
         return dmat
         
-    def preprocess(self, data, is_cat=[], quant_per_column=20, weighted=False, nthreads=-1):
+    def preprocess(self, data, is_cat=[], num_quantiles=20, weighted=False, nthreads=-1):
         self.prep = preprocessor()
         return self.prep.preprocess(
             data             = data, 
             is_cat           = is_cat,
-            quant_per_column = quant_per_column, 
+            num_quantiles = num_quantiles, 
             weighted         = weighted, 
             nthreads         = nthreads)
 

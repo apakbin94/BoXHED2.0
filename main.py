@@ -139,7 +139,7 @@ def _read_synth(exp_num, num_irr):
 
     return data
 
-@exec_if_not_cached
+#@exec_if_not_cached
 def _read_synth_test(exp_num, num_irr):
     data = pd.read_csv(os.path.join(DATA_ADDRESS, "exp_%d__num_irr_40__test.csv"%exp_num))
     col_included = cols_to_include(data.columns, num_irr)
@@ -153,6 +153,8 @@ def _read_synth_test(exp_num, num_irr):
         else:
             col_included.append(False)
     data = data.loc[:, col_included]
+    data.rename(columns = {"t_start": "t"}, 
+                  inplace = True)
     
     true_haz = TrueHaz(data.values, 40+exp_num)
 
@@ -200,7 +202,7 @@ def grid_search_test_synth(exp_num, num_irr, num_gpu, model_per_gpu):
     subjects, X, w, delta = boxhed_.preprocess(
             data             = data, 
             #is_cat           = [4],
-            quant_per_column = num_quantiles, 
+            num_quantiles = num_quantiles, 
             weighted         = False, 
             nthreads         = -1)
 

@@ -28,7 +28,7 @@ class preprocessor:
                 c_size_t, #delta_idx
                 c_void_p, #quant_v
                 c_void_p, #quant_size_v
-                c_size_t, #quant_per_column
+                c_size_t, #num_quantiles
                 c_bool,   #weighted
                 c_int     #nthreads
                 ]
@@ -44,7 +44,7 @@ class preprocessor:
                 c_size_t, #t_end_idx
                 c_void_p, #quant_v
                 c_void_p, #quant_size_v
-                c_size_t  #quant_per_column
+                c_size_t  #num_quantiles
                 ]
 
         self.prep_lib.preprocess.restype       = None
@@ -57,7 +57,7 @@ class preprocessor:
                 c_void_p, #out_data_v
                 c_void_p, #quant_v
                 c_void_p, #quant_size_v
-                c_size_t, #quant_per_column
+                c_size_t, #num_quantiles
                 c_size_t, #t_start_idx 
                 c_size_t, #t_end_idx
                 c_size_t, #delta_idx
@@ -77,7 +77,7 @@ class preprocessor:
                 c_size_t, #ncols
                 c_void_p, #quant_idx_v
                 c_void_p, #quant_v
-                c_size_t, #quant_per_column
+                c_size_t, #num_quantiles
                 c_int     #nthreads
                 ]
  
@@ -114,7 +114,7 @@ class preprocessor:
             c_size_t(self.delta_idx), 
             c_void_p(self.quant.ctypes.data), 
             c_void_p(self.quant_size.ctypes.data),
-            c_size_t(self.quant_per_column),
+            c_size_t(self.num_quantiles),
             c_bool(self.weighted),
             c_int(self.nthreads))
 
@@ -130,7 +130,7 @@ class preprocessor:
             c_size_t(self.t_end_idx), 
             c_void_p(self.quant.ctypes.data), 
             c_void_p(self.quant_size.ctypes.data),
-            c_size_t(self.quant_per_column)
+            c_size_t(self.num_quantiles)
             ))
 
     def _preprocess(self):
@@ -145,7 +145,7 @@ class preprocessor:
                 c_void_p(self.preprocessed.ctypes.data),
                 c_void_p(self.quant.ctypes.data), 
                 c_void_p(self.quant_size.ctypes.data),
-                c_size_t(self.quant_per_column), 
+                c_size_t(self.num_quantiles), 
                 c_size_t(self.t_start_idx), 
                 c_size_t(self.t_end_idx), 
                 c_size_t(self.delta_idx), 
@@ -191,18 +191,18 @@ class preprocessor:
 
 
     def _compute_quant(self):
-        self.tpart      = self._contig_float(np.zeros((1, self.quant_per_column)))
-        self.quant      = self._contig_float(np.zeros((1, self.quant_per_column*(self.ncols))))
+        self.tpart      = self._contig_float(np.zeros((1, self.num_quantiles)))
+        self.quant      = self._contig_float(np.zeros((1, self.num_quantiles*(self.ncols))))
         self.quant_size = self._contig_size_t(np.zeros((1, self.ncols)))
 
         self.__compute_quant()
 
-    def preprocess(self, data, is_cat=[], quant_per_column=20, weighted=False, nthreads=-1):
+    def preprocess(self, data, is_cat=[], num_quantiles=20, weighted=False, nthreads=-1):
         #TODO: maye change how the data is given? pat, X, y?
 
         #XXX: using np.float64---c_double
         self.nthreads       = nthreads
-        self.quant_per_column   = min(quant_per_column, 256)
+        self.num_quantiles   = min(num_quantiles, 256)
         self.weighted       = weighted
         self.data           = data
         self.is_cat         = self._contig_bool(np.zeros((1, data.shape[1])))
@@ -245,7 +245,7 @@ class preprocessor:
             c_size_t(ncols),
             c_void_p(quant_idxs.ctypes.data),
             c_void_p(self.quant.ctypes.data),
-            c_size_t(self.quant_per_column),
+            c_size_t(self.num_quantiles),
             c_int(nthreads))
         
         return processed

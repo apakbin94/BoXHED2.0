@@ -46,7 +46,7 @@ void preprocess(
                           void*          out_data_v, 
                     const void*          quant_v, 
                     const void*          quant_size_v,
-                    const size_t         quant_per_column, 
+                    const size_t         num_quantiles, 
                     const size_t         t_start_idx, 
                     const size_t         t_end_idx, 
                     const size_t         delta_idx, 
@@ -64,7 +64,7 @@ boundary_info* get_boundaries(
         size_t t_end_idx, 
         const void* quant_v, 
         const void* quant_size_v, 
-        size_t quant_per_column
+        size_t num_quantiles
         );
 
 
@@ -79,7 +79,7 @@ void compute_quant(
         size_t delta_idx, 
         void* quant_v, 
         void* quant_size_v, 
-        size_t quant_per_column, 
+        size_t num_quantiles, 
         bool weighted, 
         int nthreads
         );
@@ -91,7 +91,7 @@ void shift_left(
         size_t ncols, 
         const void* quant_idx_v, 
         const void* quant_v, 
-        size_t quant_per_column, 
+        size_t num_quantiles, 
         int nthreads
         );
 #ifdef __cplusplus

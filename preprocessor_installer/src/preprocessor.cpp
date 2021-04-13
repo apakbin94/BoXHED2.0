@@ -55,7 +55,7 @@ class preprocessor{
 
     public :
 
-        preprocessor(const T* data_, const size_t nrows_, const size_t ncols_, const bool* is_cat_, const boundary_info* bndry_info_, T* out_data_, const T* quant_arr, const size_t* quant_size_arr, const size_t quant_per_column_, const size_t t_start_idx_, const size_t t_end_idx_, const size_t delta_idx_, const size_t pat_col_idx_):
+        preprocessor(const T* data_, const size_t nrows_, const size_t ncols_, const bool* is_cat_, const boundary_info* bndry_info_, T* out_data_, const T* quant_arr, const size_t* quant_size_arr, const size_t num_quantiles_, const size_t t_start_idx_, const size_t t_end_idx_, const size_t delta_idx_, const size_t pat_col_idx_):
             data(data_),
             nrows(nrows_),
             ncols(ncols_),
@@ -65,12 +65,12 @@ class preprocessor{
             out_data(out_data_),
             out_nrows(bndry_info->out_nrows),
             tquant(std::vector<T>(
-                        quant_arr+t_start_idx_*quant_per_column_, 
-                        quant_arr+t_start_idx_*quant_per_column_
+                        quant_arr+t_start_idx_*num_quantiles_, 
+                        quant_arr+t_start_idx_*num_quantiles_
                         +quant_size_arr[t_start_idx_])),
             quant(quant_arr),
             quant_size(quant_size_arr),
-            quant_per_column(quant_per_column_),
+            num_quantiles(num_quantiles_),
             t_start_idx(t_start_idx_),
             t_end_idx(t_end_idx_),
             dt_idx(t_end_idx),
@@ -87,8 +87,8 @@ class preprocessor{
 
         inline void quantize_column(size_t col_idx){
             auto column_quant = std::vector<T>(
-                        quant + col_idx* quant_per_column, 
-                        quant + col_idx* quant_per_column
+                        quant + col_idx* num_quantiles, 
+                        quant + col_idx* num_quantiles
                               + quant_size[col_idx]);
 
             for (size_t row_idx = 0; row_idx < nrows; ++row_idx){
@@ -260,7 +260,7 @@ class preprocessor{
         std::vector<T> tquant;
         const T* quant;
         const size_t* quant_size;
-        const size_t quant_per_column;
+        const size_t num_quantiles;
         T* temp_quantized_data;
 
         const size_t t_start_idx;
@@ -278,14 +278,14 @@ class pat_lb_ub_calculator{
 
     public:
 
-        pat_lb_ub_calculator(const T* data_, const size_t nrows_, const size_t ncols_, const size_t nsubjects_, const T* quant_arr, const size_t* quant_size, const size_t quant_per_column, const size_t t_start_idx_, const size_t pat_col_idx_, size_t t_end_idx_):
+        pat_lb_ub_calculator(const T* data_, const size_t nrows_, const size_t ncols_, const size_t nsubjects_, const T* quant_arr, const size_t* quant_size, const size_t num_quantiles, const size_t t_start_idx_, const size_t pat_col_idx_, size_t t_end_idx_):
             data(data_),
             nrows(nrows_),
             ncols(ncols_),
             nsubjects(nsubjects_),
             tquant(std::vector<T>(
-                        quant_arr+t_start_idx_*quant_per_column, 
-                        quant_arr+t_start_idx_*quant_per_column
+                        quant_arr+t_start_idx_*num_quantiles, 
+                        quant_arr+t_start_idx_*num_quantiles
                         + quant_size[t_start_idx_])),
             t_start_idx(t_start_idx_),
             pat_col_idx(pat_col_idx_),
@@ -432,7 +432,7 @@ inline void _copy_col2arr(const T* src, size_t nrows, size_t ncols,
 
 
 template <class T>
-inline void _compute_quant(const T* data, size_t nrows, size_t ncols, const bool* is_cat, size_t t_start_idx, size_t t_end_idx, size_t pat_idx, size_t delta_idx, T* quant, size_t* quant_size, size_t quant_per_column){
+inline void _compute_quant(const T* data, size_t nrows, size_t ncols, const bool* is_cat, size_t t_start_idx, size_t t_end_idx, size_t pat_idx, size_t delta_idx, T* quant, size_t* quant_size, size_t num_quantiles){
  
     //#pragma omp parallel for schedule(dynamic)
     for (size_t col_idx = 0; col_idx<ncols; ++col_idx){
@@ -460,11 +460,11 @@ inline void _compute_quant(const T* data, size_t nrows, size_t ncols, const bool
         size_t num_unique;
         _rmv_dupl_srtd<T> (vals, vals_size, &num_unique);
 
-        size_t num_quants = std::min(num_unique, quant_per_column);
+        size_t num_quants = std::min(num_unique, num_quantiles);
         quant_size [col_idx] = num_quants;
 
         for (size_t i=0; i<num_quants; ++i){
-            quant[col_idx*quant_per_column+i] = vals[static_cast<int>(num_unique*i/num_quants)];
+            quant[col_idx*num_quantiles+i] = vals[static_cast<int>(num_unique*i/num_quants)];
         }
         delete [] vals;
                 
@@ -533,7 +533,7 @@ inline void _fill_non_time_acc_weight(const std::vector<std::pair<T, size_t>> &s
 
 
 template <class T>
-void _fill_quants (T* quant, size_t quant_per_column, size_t num_quants, size_t col_idx,
+void _fill_quants (T* quant, size_t num_quantiles, size_t num_quants, size_t col_idx,
                           T* unique, T* acc_weight, size_t num_unique){
 
     std::cout << "-1" << std::endl;
@@ -566,9 +566,9 @@ void _fill_quants (T* quant, size_t quant_per_column, size_t num_quants, size_t 
     std::cout << "-2" << std::endl;
     */
 
-    if (num_unique <= quant_per_column){
+    if (num_unique <= num_quantiles){
         for (size_t i = 0; i < num_unique; ++i){
-            quant[col_idx*quant_per_column + i] = unique [i];
+            quant[col_idx*num_quantiles + i] = unique [i];
         }
         return;
     }
@@ -612,7 +612,7 @@ void _fill_quants (T* quant, size_t quant_per_column, size_t num_quants, size_t 
             q = ((val_n-val)/(w_n-w))*(quant_to_select-w)+val;
         }
 
-        quant[col_idx*quant_per_column + i] = q;
+        quant[col_idx*num_quantiles + i] = q;
 
         /*
         if ((idx < acc_weight_vec.size()-1) 
@@ -620,12 +620,12 @@ void _fill_quants (T* quant, size_t quant_per_column, size_t num_quants, size_t 
             idx += 1;
          }
 
-        quant[col_idx*quant_per_column + i] = unique[idx];
+        quant[col_idx*num_quantiles + i] = unique[idx];
         */
-        if ((i>0) && (quant[col_idx*quant_per_column + i] == quant[col_idx*quant_per_column + i - 1]))
+        if ((i>0) && (quant[col_idx*num_quantiles + i] == quant[col_idx*num_quantiles + i - 1]))
             {
             /*
-            throw std::invalid_argument("ERROR: An error has occured. Consider decreasing quant_per_column.");        
+            throw std::invalid_argument("ERROR: An error has occured. Consider decreasing num_quantiles.");        
             */
             std::stringstream err_str;
             err_str << "ERROR: An error has occured in column"<<" "<<col_idx<<" while extracting quantiles.";
@@ -657,7 +657,7 @@ inline void normalize (T* arr, size_t size, T norm_factor){
 }
 
 template <class T>
-void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, const bool* is_cat, size_t t_start_idx, size_t t_end_idx, size_t pat_idx, size_t delta_idx, T* quant, size_t* quant_size, size_t quant_per_column){
+void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, const bool* is_cat, size_t t_start_idx, size_t t_end_idx, size_t pat_idx, size_t delta_idx, T* quant, size_t* quant_size, size_t num_quantiles){
 
     throw std::invalid_argument("NOT IMPLEMENTED: Use the non-weighted version for now please.");
 
@@ -704,7 +704,7 @@ void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, const bo
         size_t num_unique;
         _rmv_dupl_srtd(srtd_val_idx, unique, &num_unique);
         
-        size_t num_quants = std::min(num_unique, quant_per_column);
+        size_t num_quants = std::min(num_unique, num_quantiles);
         quant_size [col_idx] = num_quants;
 
         /*
@@ -749,7 +749,7 @@ void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, const bo
 
         normalize (acc_weight, num_unique, total_t);
 
-        _fill_quants (quant, quant_per_column, num_quants, col_idx,
+        _fill_quants (quant, num_quantiles, num_quants, col_idx,
                           unique, acc_weight, num_unique);        
         delete [] unique;
         delete [] acc_weight;
@@ -773,7 +773,7 @@ void preprocess(
                           void*          out_data_v, 
                     const void*          quant_v, 
                     const void*          quant_size_v,
-                    const size_t         quant_per_column, 
+                    const size_t         num_quantiles, 
                     const size_t         t_start_idx, 
                     const size_t         t_end_idx, 
                     const size_t         delta_idx, 
@@ -791,7 +791,7 @@ void preprocess(
         omp_set_num_threads(nthreads);
 #endif
 
-    preprocessor<double> preprocessor_ (data, nrows, ncols, is_cat, bndry_info, out_data, quant_arr, quant_size, quant_per_column, t_start_idx, t_end_idx, delta_idx, pat_col_idx);
+    preprocessor<double> preprocessor_ (data, nrows, ncols, is_cat, bndry_info, out_data, quant_arr, quant_size, num_quantiles, t_start_idx, t_end_idx, delta_idx, pat_col_idx);
     
     try {
         preprocessor_.preprocess();
@@ -813,14 +813,14 @@ boundary_info* get_boundaries(
         size_t t_end_idx, 
         const void* quant_v, 
         const void* quant_size_v, 
-        size_t quant_per_column
+        size_t num_quantiles
         ){
 
     const double* data       = (double *) data_v;
     const double* quant_arr  = (double *) quant_v;
     const size_t* quant_size = (size_t *) quant_size_v;
        
-    pat_lb_ub_calculator<double> pat_lb_ub_calculator_ = pat_lb_ub_calculator<double>(data, nrows, ncols, nsubjects, quant_arr, quant_size, quant_per_column, t_start_idx, pat_col_idx, t_end_idx);
+    pat_lb_ub_calculator<double> pat_lb_ub_calculator_ = pat_lb_ub_calculator<double>(data, nrows, ncols, nsubjects, quant_arr, quant_size, num_quantiles, t_start_idx, pat_col_idx, t_end_idx);
 
     return pat_lb_ub_calculator_.get_boundaries();
 
@@ -839,7 +839,7 @@ void compute_quant(
         size_t delta_idx, 
         void* quant_v, 
         void* quant_size_v, 
-        size_t quant_per_column, 
+        size_t num_quantiles, 
         bool weighted, 
         int nthreads
         ){
@@ -854,10 +854,10 @@ void compute_quant(
 #endif
 
     if (weighted){
-        _compute_quant_weighted<double> (data, nrows, ncols, is_cat, t_start_idx, t_end_idx, pat_idx, delta_idx, quant, quant_size, quant_per_column);
+        _compute_quant_weighted<double> (data, nrows, ncols, is_cat, t_start_idx, t_end_idx, pat_idx, delta_idx, quant, quant_size, num_quantiles);
     }
     else{
-        _compute_quant<double> (data, nrows, ncols, is_cat, t_start_idx, t_end_idx, pat_idx, delta_idx, quant, quant_size, quant_per_column);
+        _compute_quant<double> (data, nrows, ncols, is_cat, t_start_idx, t_end_idx, pat_idx, delta_idx, quant, quant_size, num_quantiles);
     }
 }
 
@@ -867,7 +867,7 @@ void shift_left(
         size_t ncols, 
         const void* quant_idx_v, 
         const void* quant_v, 
-        size_t quant_per_column, 
+        size_t num_quantiles, 
         int nthreads
         ){
 
@@ -886,8 +886,8 @@ void shift_left(
         size_t quant_idx_ = quant_idx [col_idx];
 
         auto column_quant = std::vector<T>(
-            quant + quant_idx_*     quant_per_column, 
-            quant + (quant_idx_+1)* quant_per_column);
+            quant + quant_idx_*     num_quantiles, 
+            quant + (quant_idx_+1)* num_quantiles);
 
         for (size_t row_idx = 0; row_idx < nrows; ++row_idx){
             T val = data [row_idx*ncols + col_idx];
