@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from boxhed import boxhed
 from utils import timer, curr_dat_time, run_as_process, exec_if_not_cached, _get_free_gpu_list, create_dir_if_not_exist
-from grid_search import collapsed_ntree_gs
+from grid_search import k_fold_cv
 from preprocessor import preprocessor 
 import math
 
@@ -18,12 +18,12 @@ for addr in [RSLT_ADDRESS]:
 
 #TODO: get these from command line?
 num_quantiles   = 256
-grid_search     = False#True
+grid_search     = True
 use_gpu         = False
 
 # when CPU hist is used, the batch size would be num_gpu * model_per_gpu
 num_gpus = [1]#[4, 6]
-model_per_gpu_list = [20]#[8, 10]
+batch_sizes = [20]#[8, 10]
 keep_probs = [0.7, 0.8, 0.9, 1]
 num_bs     = 20
 
@@ -180,7 +180,7 @@ hyperparams = {
 
 
 @run_as_process
-def grid_search_test_synth(exp_num, num_irr, num_gpu, model_per_gpu):
+def grid_search_test_synth(exp_num, num_irr, num_gpu, batch_size):
         
     #from sklearn.utils.estimator_checks import check_estimator
     #check_estimator(boxhed())
@@ -191,7 +191,7 @@ def grid_search_test_synth(exp_num, num_irr, num_gpu, model_per_gpu):
     rslt = {'exp_num':       exp_num, 
             'num_irr':       num_irr, 
             'num_gpu':       num_gpu, 
-            'model_per_gpu': model_per_gpu}
+            'batch_size':    batch_size}
 
     data = _read_synth(exp_num, num_irr)
     
@@ -216,16 +216,14 @@ def grid_search_test_synth(exp_num, num_irr, num_gpu, model_per_gpu):
     if grid_search:
         gridsearch_timer = timer()
         #TODO: handle memory exception if model_per_gpu too large
-        cv_rslts, best_params = collapsed_ntree_gs(boxhed(), 
-                                  param_grid, 
+        cv_rslts, best_params = k_fold_cv(param_grid, 
                                   X, 
                                   w,
                                   delta,
                                   subjects, 
                                   5,
                                   gpu_list,
-                                  model_per_gpu,
-                                  -1)
+                                  batch_size)
     
         rslt["GS_time"] = gridsearch_timer.get_dur()
     else:
@@ -234,7 +232,7 @@ def grid_search_test_synth(exp_num, num_irr, num_gpu, model_per_gpu):
     best_params['gpu_id'] = gpu_list[0]
 
     #TODO: nthread problem still not solved
-    best_params['nthread'] = num_gpu*model_per_gpu#-1
+    best_params['nthread'] = batch_size
 
     rslt.update(best_params)
      
@@ -274,22 +272,22 @@ if __name__ == "__main__":
     
     rslts = []
     for num_gpu in num_gpus:
-        for model_per_gpu in model_per_gpu_list:
+        for batch_size in batch_sizes:
  
             #TODO: tqdm
             for exp_num in [1, 2, 3, 4]:
                 for num_irr in [0,20,40]:
 
-                    print ('    exp:      ', exp_num)
-                    print ('    num_irr:  ', num_irr)
-                    print ('    num GPU:  ', num_gpu)
-                    print ('    /GPU:     ', model_per_gpu)
+                    print ('    exp:        ', exp_num)
+                    print ('    num_irr:    ', num_irr)
+                    print ('    num GPU:    ', num_gpu)
+                    print ('    batch size: ', batch_size)
                     print ("")
 
                     rslt = grid_search_test_synth(exp_num, 
                                                   num_irr,
                                                   num_gpu, 
-                                                  model_per_gpu)
+                                                  batch_size)
 
                     print (rslt, "\n"*3, rslt["rmse"], "\n"*2, sep="")
                     rslts.append(rslt)

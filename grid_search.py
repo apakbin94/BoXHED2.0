@@ -128,13 +128,14 @@ class collapsed_gs_:
             self.data_idx[idx] = {"train":train_idx ,"test":test_idx}
             
 
-    def __init__(self, estimator, param_grid, cv, n_jobs, GPU_LIST, model_per_gpu):
+    def __init__(self, param_grid, cv, GPU_LIST, batch_size):
 
-        self.estimator  = estimator
         self.param_grid = copy.copy(param_grid)
         self.param_grid["fold"] = [x for x in range(len(cv))]
 
-        self.model_per_gpu = model_per_gpu
+        #self.model_per_gpu = model_per_gpu
+        self.batch_size = batch_size
+        self.model_per_gpu = batch_size//len(GPU_LIST)
         
         self.collapsed     = 'n_estimators'
         self.not_collapsed = 'max_depth'
@@ -160,7 +161,6 @@ class collapsed_gs_:
 
         #raise
         self.cv         = cv
-        self.n_jobs     = n_jobs
 
         self.data_idx   = {}
         self._fill_data_idx()
@@ -187,7 +187,7 @@ class collapsed_gs_:
     #TODO: what if it was on CPU?
     def _batched_train_test(self):
 
-        batch_size = len(self.GPU_LIST)*self.model_per_gpu
+        #batch_size = len(self.GPU_LIST)*self.model_per_gpu
 
         smm = SharedMemoryManager()
         smm.start()
@@ -210,14 +210,14 @@ class collapsed_gs_:
                 'delta_shared_name': delta_shared.name,
                 'delta_shape':       self.delta.shape,
                 'delta_dtype':       self.delta.dtype,
-                'batch_size':        batch_size,
+                'batch_size':        self.batch_size,
                 'batch_idx':         None,
                 'test_block_size':   self.test_block_size
                         })
 
             rslt_mngd =          manager.list([0]*len(self.param_dicts_test))
 
-            for batch_idx in range(int(len(self.param_dicts_train)/batch_size)+1):
+            for batch_idx in range(int(len(self.param_dicts_train)/self.batch_size)+1):
 
                 param_dict_mngd['batch_idx'] = batch_idx
 
@@ -280,12 +280,14 @@ class collapsed_gs_:
         }
 
 
-def collapsed_ntree_gs(estimator, param_grid, x, w, delta, subjects, n_splits, gpu_list, model_per_gpu, n_jobs = -1):
+def k_fold_cv(param_grid, x, w, delta, subjects, n_splits, gpu_list, batch_size):
+
+    assert batch_size%len(gpu_list) == 0, "batch_size should be divisible by len(gpu_list)"
     x, w, delta, groups = indexable(x, w, delta, subjects)
 
     gkf = list(GroupKFold(n_splits=n_splits).split(x,delta,subjects))
 
-    collapsed_ntree_gs_  = collapsed_gs_(estimator, param_grid, gkf, n_jobs, gpu_list, model_per_gpu)
+    collapsed_ntree_gs_  = collapsed_gs_(param_grid, gkf, gpu_list, batch_size)
  
     results     = collapsed_ntree_gs_.fit(x,w,delta)
     means       = results['mean_test_score']
