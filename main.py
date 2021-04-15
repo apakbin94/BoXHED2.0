@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from boxhed import boxhed
 from utils import timer, curr_dat_time, run_as_process, exec_if_not_cached, _get_free_gpu_list, create_dir_if_not_exist
-from grid_search import k_fold_cv
+from grid_search import cv
 from preprocessor import preprocessor 
 import math
 
@@ -18,7 +18,7 @@ for addr in [RSLT_ADDRESS]:
 
 #TODO: get these from command line?
 num_quantiles   = 256
-grid_search     = True
+do_CV           = True
 use_gpu         = False
 
 # when CPU hist is used, the batch size would be num_gpu * model_per_gpu
@@ -213,10 +213,10 @@ def grid_search_test_synth(exp_num, num_irr, num_gpu, batch_size):
     else:
         gpu_list = [-1] 
 
-    if grid_search:
+    if do_CV:
         gridsearch_timer = timer()
         #TODO: handle memory exception if model_per_gpu too large
-        cv_rslts, best_params = k_fold_cv(param_grid, 
+        cv_rslts, best_params = cv(param_grid, 
                                   X, 
                                   w,
                                   delta,
