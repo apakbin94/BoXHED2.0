@@ -280,7 +280,7 @@ class collapsed_gs_:
         }
 
 
-def k_fold_cv(param_grid, x, w, delta, subjects, n_splits, gpu_list, batch_size):
+def cv(param_grid, x, w, delta, subjects, n_splits, gpu_list, batch_size):
 
     assert batch_size%len(gpu_list) == 0, "batch_size should be divisible by len(gpu_list)"
     x, w, delta, groups = indexable(x, w, delta, subjects)

@@ -3,8 +3,7 @@ import pandas as pd
 import os
 from boxhed import boxhed
 from utils import timer, curr_dat_time, run_as_process, exec_if_not_cached, _get_free_gpu_list, create_dir_if_not_exist
-from grid_search import cv
-from preprocessor import preprocessor 
+from model_selection import cv
 import math
 
 from scipy.stats import beta # beta distribution.
@@ -180,7 +179,7 @@ hyperparams = {
 
 
 @run_as_process
-def grid_search_test_synth(exp_num, num_irr, num_gpu, batch_size):
+def train_test_synth(exp_num, num_irr, num_gpu, batch_size):
         
     #from sklearn.utils.estimator_checks import check_estimator
     #check_estimator(boxhed())
@@ -284,7 +283,7 @@ if __name__ == "__main__":
                     print ('    batch size: ', batch_size)
                     print ("")
 
-                    rslt = grid_search_test_synth(exp_num, 
+                    rslt = train_test_synth(exp_num, 
                                                   num_irr,
                                                   num_gpu, 
                                                   batch_size)
