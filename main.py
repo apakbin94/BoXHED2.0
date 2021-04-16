@@ -179,7 +179,7 @@ hyperparams = {
 
 
 @run_as_process
-def train_test_synth(exp_num, num_irr, num_gpu, batch_size):
+def cv_synth(exp_num, num_irr, num_gpu, batch_size):
         
     #from sklearn.utils.estimator_checks import check_estimator
     #check_estimator(boxhed())
@@ -283,7 +283,7 @@ if __name__ == "__main__":
                     print ('    batch size: ', batch_size)
                     print ("")
 
-                    rslt = train_test_synth(exp_num, 
+                    rslt = cv_synth(exp_num, 
                                                   num_irr,
                                                   num_gpu, 
                                                   batch_size)
