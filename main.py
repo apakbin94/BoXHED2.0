@@ -272,8 +272,8 @@ if __name__ == "__main__":
         for batch_size in batch_sizes:
  
             #TODO: tqdm
-            for exp_num in [1]:#, 2, 3, 4]:
-                for num_irr in [0]:#,20,40]:
+            for exp_num in [1, 2, 3, 4]:
+                for num_irr in [0,20,40]:
 
                     print ('    exp:        ', exp_num)
                     print ('    num_irr:    ', num_irr)
@@ -290,7 +290,7 @@ if __name__ == "__main__":
                     rslts.append(rslt)
 
     rslt_df = pd.DataFrame(rslts)
-    rslt_df_file_name = _rslt_file_name("num_quantiles", "use_gpu", "do_CV", "num_gpus", "model_per_gpu_list")
+    rslt_df_file_name = _rslt_file_name("num_quantiles", "use_gpu", "do_CV", "num_gpus", "batch_sizes")
 
     print (rslt_df)
     rslt_df.to_csv(os.path.join(RSLT_ADDRESS, rslt_df_file_name),
