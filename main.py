@@ -23,8 +23,6 @@ use_gpu         = False
 # when CPU hist is used, the batch size would be num_gpu * model_per_gpu
 num_gpus = [1]#[4, 6]
 batch_sizes = [20]#[8, 10]
-keep_probs = [0.7, 0.8, 0.9, 1]
-num_bs     = 20
 
 # calc_L2: calculate L2 distance and its 95% confidence interval.
 # Input:
@@ -138,7 +136,7 @@ def _read_synth(exp_num, num_irr):
 
     return data
 
-#@exec_if_not_cached
+@exec_if_not_cached
 def _read_synth_test(exp_num, num_irr):
     data = pd.read_csv(os.path.join(DATA_ADDRESS, "exp_%d__num_irr_40__test.csv"%exp_num))
     col_included = cols_to_include(data.columns, num_irr)
@@ -274,8 +272,8 @@ if __name__ == "__main__":
         for batch_size in batch_sizes:
  
             #TODO: tqdm
-            for exp_num in [1, 2, 3, 4]:
-                for num_irr in [0,20,40]:
+            for exp_num in [1]:#, 2, 3, 4]:
+                for num_irr in [0]:#,20,40]:
 
                     print ('    exp:        ', exp_num)
                     print ('    num_irr:    ', num_irr)
@@ -292,7 +290,7 @@ if __name__ == "__main__":
                     rslts.append(rslt)
 
     rslt_df = pd.DataFrame(rslts)
-    rslt_df_file_name = _rslt_file_name("num_quantiles", "use_gpu", "grid_search", "num_gpus", "model_per_gpu_list", "keep_probs")
+    rslt_df_file_name = _rslt_file_name("num_quantiles", "use_gpu", "do_CV", "num_gpus", "model_per_gpu_list")
 
     print (rslt_df)
     rslt_df.to_csv(os.path.join(RSLT_ADDRESS, rslt_df_file_name),
