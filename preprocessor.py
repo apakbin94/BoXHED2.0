@@ -197,7 +197,7 @@ class preprocessor:
 
         self.__compute_quant()
 
-    def preprocess(self, data, is_cat=[], num_quantiles=20, weighted=False, nthreads=-1):
+    def preprocess(self, data, is_cat=[], num_quantiles=20, weighted=False, nthreads=1):
         #TODO: maye change how the data is given? pat, X, y?
 
         #XXX: using np.float64---c_double
@@ -223,7 +223,7 @@ class preprocessor:
 
         return self.subjects, self.X, self.w, self.delta
 
-    def shift_left(self, X, nthreads=-1):
+    def shift_left(self, X, nthreads=1):
 
         assert X.ndim==2,"ERROR: data needs to be 2 dimensional"
         nrows, ncols = X.shape
