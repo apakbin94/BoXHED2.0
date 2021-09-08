@@ -4,6 +4,10 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 OPEN="~ ~ ~ ~ ~ ~ > "
 CLOSE="  ..."
 setup_log="${DIR}/setup_log.txt"
+USE_CUDA="OFF"
+if [ "$1" == "--use_cuda" ]; then
+    USE_CUDA="ON"
+fi
 
 check_success () {
     if [ $? -eq 0 ]; then
@@ -23,7 +27,7 @@ check_success
 
 echo "${OPEN}running cmake for boxhed in ${DIR}/boxhed.kernel/build/${CLOSE}"
 cd "${DIR}/boxhed.kernel/build/"
-cmake .. -DUSE_CUDA=ON >> ${setup_log} 2>&1
+cmake .. -DUSE_CUDA=${USE_CUDA} >> ${setup_log} 2>&1
 check_success
 
 echo "${OPEN}running make for boxhed in ${DIR}/boxhed.kernel/build/${CLOSE}"
