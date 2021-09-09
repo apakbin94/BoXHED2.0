@@ -35,6 +35,14 @@ Subsequently, you can install BoXHED2.0 by running:
 ```
 bash setup.sh
 ```
+In case you want to install BoXHED2.0 with GPU functionality enabled, you may pass the *--use_cuda* flag:
+```
+bash setup.sh --use_cuda
+```
+Mac users might experience seeing a *Could NOT find OpenMP_C* error. In that case, consider running the following before trying to install again:
+```
+brew install libomp
+```
 
 then run jupyter notebook
 ```
