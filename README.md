@@ -28,7 +28,7 @@ conda activate boxhed2.0
 
 now install numpy, pandas, scikit-learn, pytz, py3nvml, matplotlib and jupyter notebook by:
 ```
-bash conda_install_packages.sh
+source conda_install_packages.sh
 ```
 
 Subsequently, you can install BoXHED2.0 by running:
