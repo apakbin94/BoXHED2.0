@@ -27,6 +27,10 @@ is_windows=$((1-$is_windows))
 [[ "$OSTYPE" == "darwin"* ]] ; is_mac=$?
 is_mac=$((1-$is_mac))
 
+# is linux
+[[ "$OSTYPE" == "linux-gnu"* ]] ; is_linux=$?
+is_linux=$((1-$is_linux))
+
 
 use_gpu=false
 while getopts ":gv:" opt; do
@@ -71,6 +75,10 @@ shift $((OPTIND -1))
 
 if [ "$use_gpu" == true ]
 then
+    if [[ $is_linux == 0 ]] ; then
+        echo "Error: CUDA usage is available for Linux users only at the moment." >&2
+        exit 1
+    fi
     cmake_args+=(-DUSE_CUDA=ON)
 else
     cmake_args+=(-DUSE_CUDA=OFF)
