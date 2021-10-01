@@ -87,7 +87,8 @@ check_success
 
 if [[ $is_mac == 1 ]]; then
     print "installing libomp for MacOS"
-    brew install libomp
+    brew install libomp >> ${setup_log} 2>&1
+    check_success
 fi
 
 print "running cmake for boxhed in ${DIR}/boxhed.kernel/build/"
