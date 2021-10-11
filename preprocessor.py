@@ -2,6 +2,7 @@ import os
 from ctypes import *
 import numpy as np
 import pandas as pd
+import copy
 
 class preprocessor:
 
@@ -88,11 +89,6 @@ class preprocessor:
         self.t_end_idx   = self.colnames.index('t_end')
         self.delta_idx   = self.colnames.index('delta') #TODO: either 0 or 1
 
-
-    def _cnvrt_colnames(self):
-        self.colnames[self.t_end_idx] = 'dt'
-
-
     def _contig_float(self, arr):
         return np.ascontiguousarray(arr, dtype = np.float64)
 
@@ -102,12 +98,12 @@ class preprocessor:
     def _contig_bool(self, arr):
         return np.ascontiguousarray(arr, dtype = np.bool_)
 
-    def __compute_quant(self):
+    def __compute_quant(self, data, nrows, ncols, is_cat):
         self.prep_lib.compute_quant(
-            c_void_p(self.data.ctypes.data), 
-            c_size_t(self.nrows), 
-            c_size_t(self.ncols), 
-            c_void_p(self.is_cat.ctypes.data),
+            c_void_p(data.ctypes.data), 
+            c_size_t(nrows), 
+            c_size_t(ncols), 
+            c_void_p(is_cat.ctypes.data),
             c_size_t(self.t_start_idx), 
             c_size_t(self.t_end_idx), 
             c_size_t(self.pat_idx), 
@@ -119,12 +115,12 @@ class preprocessor:
             c_int(self.nthreads))
 
 
-    def _get_boundaries(self):
+    def _get_boundaries(self, data, nrows, ncols, nsubjects):
         return self.c_boundary_info.from_address(self.prep_lib.get_boundaries(
-            c_void_p(self.data.ctypes.data), 
-            c_size_t(self.nrows), 
-            c_size_t(self.ncols), 
-            c_size_t(self.nsubjects), 
+            c_void_p(data.ctypes.data), 
+            c_size_t(nrows), 
+            c_size_t(ncols), 
+            c_size_t(nsubjects), 
             c_size_t(self.pat_idx), 
             c_size_t(self.t_start_idx), 
             c_size_t(self.t_end_idx), 
@@ -133,16 +129,16 @@ class preprocessor:
             c_size_t(self.num_quantiles)
             ))
 
-    def _preprocess(self):
-        self.preprocessed = self._contig_float(np.zeros((self.bndry_info.out_nrows, self.ncols))) 
+    def _preprocess(self, data, nrows, ncols, is_cat, bndry_info):
+        preprocessed = self._contig_float(np.zeros((bndry_info.out_nrows, ncols))) 
 
         self.prep_lib.preprocess(
-                c_void_p(self.data.ctypes.data),
-                c_size_t(self.nrows), 
-                c_size_t(self.ncols), 
-                c_void_p(self.is_cat.ctypes.data),
-                byref(self.bndry_info), 
-                c_void_p(self.preprocessed.ctypes.data),
+                c_void_p(data.ctypes.data),
+                c_size_t(nrows), 
+                c_size_t(ncols), 
+                c_void_p(is_cat.ctypes.data),
+                byref(bndry_info), 
+                c_void_p(preprocessed.ctypes.data),
                 c_void_p(self.quant.ctypes.data), 
                 c_void_p(self.quant_size.ctypes.data),
                 c_size_t(self.num_quantiles), 
@@ -152,82 +148,94 @@ class preprocessor:
                 c_size_t(self.pat_idx), 
                 c_int(self.nthreads))
 
-    def _free_boundary_info(self):
-        self.prep_lib.free_boundary_info(byref(self.bndry_info))
-        del self.bndry_info
+        return preprocessed
 
-    def _prep_output_df(self):
-        self._cnvrt_colnames(); 
+    def _free_boundary_info(self, bndry_info):
+        self.prep_lib.free_boundary_info(byref(bndry_info))
+        del bndry_info
 
-        self.preprocessed = pd.DataFrame(self.preprocessed, columns = self.colnames)
-        self.subjects     = self.preprocessed['subject']
+    def _prep_output_df(self, preprocessed):
+        new_col_names                  = copy.copy(self.colnames)
+        new_col_names[self.t_end_idx]  = 'dt'
+
+        preprocessed = pd.DataFrame(preprocessed, columns = new_col_names)
+        print (preprocessed)
+        raise
+        subjects     = preprocessed['subject']
         #self.y           = self.preprocessed[['delta', 'dt']]
-        self.w            = self.preprocessed['dt']
-        self.delta        = self.preprocessed['delta']
-        self.X            = self.preprocessed.drop(columns = ['subject', 'delta', 'dt'])
-        
+        w            = preprocessed['dt']
+        delta        = preprocessed['delta']
+        X            = preprocessed.drop(columns = ['subject', 'delta', 'dt'])
 
-    def _set_lbs_ubs_ptrs(self):
-        self.in_lbs   = (c_size_t * (self.bndry_info.nsubjects+1)).from_address(self.bndry_info.in_lbs)
-        self.out_lbs  = (c_size_t * (self.bndry_info.nsubjects+1)).from_address(self.bndry_info.out_lbs)
+        return subjects, X, delta, w
+
+    def _set_lbs_ubs_ptrs(self, bndry_info):
+        self.in_lbs   = (c_size_t * (bndry_info.nsubjects+1)).from_address(bndry_info.in_lbs)
+        self.out_lbs  = (c_size_t * (bndry_info.nsubjects+1)).from_address(bndry_info.out_lbs)
     
 
-    def _data_sanity_check(self):
-        assert self.data.ndim==2,"ERROR: data needs to be 2 dimensional"
-        assert self.data['subject'].between(1, self.nsubjects).all(),"ERROR: Patients need to be numbered from 1 to # subjects"
+    def _data_sanity_check(self, data, nsubjects):
+        assert data.ndim==2,"ERROR: data needs to be 2 dimensional"
+        assert data['subject'].between(1, nsubjects).all(),"ERROR: Patients need to be numbered from 1 to # subjects"
 
-    def _setup_data(self):
+    def _setup_data(self, data):
 
         #making sure subject data is contiguous
-        self.data.sort_values(by=['subject', 't_start'], inplace = True)
+        print (data.columns)
+        data = data.sort_values(by=['subject', 't_start'])
 
-        self.colnames  = list(self.data.columns)
-        self.nsubjects = self.data['subject'].nunique()
+        self.colnames  = list(data.columns)
+        nsubjects = data['subject'].nunique()
 
-        self._data_sanity_check()
+        self._data_sanity_check(data, nsubjects)
         self._get_col_indcs()
 
-        self.data  = self._contig_float(self.data)
+        data  = self._contig_float(data)
+
+        return data, nsubjects
 
 
-    def _compute_quant(self):
+    def _compute_quant(self, data, nrows, ncols, is_cat):
         self.tpart      = self._contig_float(np.zeros((1, self.num_quantiles)))
-        self.quant      = self._contig_float(np.zeros((1, self.num_quantiles*(self.ncols))))
-        self.quant_size = self._contig_size_t(np.zeros((1, self.ncols)))
+        self.quant      = self._contig_float(np.zeros((1, self.num_quantiles*(ncols))))
+        self.quant_size = self._contig_size_t(np.zeros((1, ncols)))
 
-        self.__compute_quant()
+        self.__compute_quant(data, nrows, ncols, is_cat)
 
     def preprocess(self, data, is_cat=[], num_quantiles=20, weighted=False, nthreads=1):
         #TODO: maye change how the data is given? pat, X, y?
 
         #XXX: using np.float64---c_double
-        self.nthreads       = nthreads
-        self.num_quantiles   = min(num_quantiles, 256)
-        self.weighted       = weighted
-        self.data           = data
-        self.is_cat         = self._contig_bool(np.zeros((1, data.shape[1])))
+        self.nthreads           = nthreads
+        self.num_quantiles      = min(num_quantiles, 256)
+        self.weighted           = weighted
+        is_cat                  = self._contig_bool(np.zeros((1, data.shape[1])))
         for cat_col in is_cat:
-            self.is_cat [0, cat_col] = True
-        self.nrows          = data.shape[0]
-        self.ncols          = data.shape[1]
+            is_cat [0, cat_col] = True
+        nrows                   = data.shape[0]
+        ncols                   = data.shape[1]
 
-        self._setup_data()
+        data, nsubjects         = self._setup_data(data)
 
-        self._compute_quant()
+        self._compute_quant(data, nrows, ncols, is_cat)
 
-        self.bndry_info = self._get_boundaries()
-        self._set_lbs_ubs_ptrs()
-        self._preprocess()
-        self._prep_output_df()
-        self._free_boundary_info()
+        bndry_info              = self._get_boundaries(data, nrows, ncols, nsubjects)
+        self._set_lbs_ubs_ptrs(bndry_info)
+        preprocessed            = self._preprocess(data, nrows, ncols, is_cat, bndry_info)
+        subjects, X, delta, w   = self._prep_output_df(preprocessed)
+        self._free_boundary_info(bndry_info)
 
-        return self.subjects, self.X, self.w, self.delta
+        return subjects, X, w, delta
 
-    def shift_left(self, X, nthreads=1):
-
+    def _post_training_get_X_shape(self, X):
         assert X.ndim==2,"ERROR: data needs to be 2 dimensional"
         nrows, ncols = X.shape
         assert ncols == self.ncols-3, "ERROR: ncols in X does not match the trained data"
+        return nrows, ncols
+
+    def shift_left(self, X, nthreads=1):
+
+        nrows, ncols = self._post_training_get_X_shape(X)
 
         quant_idxs = np.ascontiguousarray(np.zeros(ncols), dtype = np.int32)
 
@@ -249,3 +257,16 @@ class preprocessor:
             c_int(nthreads))
         
         return processed
+
+    '''
+    def epoch_break_cte_hazard (self, X, nthreads=1): # used for breaking epochs into cte hazard valued intervals
+        nrows, ncols = self._post_training_get_X_shape(X)
+        #make sure sub from 1 to N!
+        self.bndry_info = self._get_boundaries()
+        self._set_lbs_ubs_ptrs()
+        self._preprocess()
+        self._prep_output_df()
+        self._free_boundary_info()
+
+        return self.subjects, self.X, self.w, self.delta
+    '''
