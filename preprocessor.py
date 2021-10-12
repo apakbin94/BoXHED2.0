@@ -83,7 +83,7 @@ class preprocessor:
                 ]
  
 
-    def _get_col_indcs(self):
+    def _set_col_indcs(self):
         self.t_start_idx = self.colnames.index('t_start')
         self.pat_idx     = self.colnames.index('subject')
         self.t_end_idx   = self.colnames.index('t_end')
@@ -159,8 +159,6 @@ class preprocessor:
         new_col_names[self.t_end_idx]  = 'dt'
 
         preprocessed = pd.DataFrame(preprocessed, columns = new_col_names)
-        print (preprocessed)
-        raise
         subjects     = preprocessed['subject']
         #self.y           = self.preprocessed[['delta', 'dt']]
         w            = preprocessed['dt']
@@ -168,10 +166,6 @@ class preprocessor:
         X            = preprocessed.drop(columns = ['subject', 'delta', 'dt'])
 
         return subjects, X, delta, w
-
-    def _set_lbs_ubs_ptrs(self, bndry_info):
-        self.in_lbs   = (c_size_t * (bndry_info.nsubjects+1)).from_address(bndry_info.in_lbs)
-        self.out_lbs  = (c_size_t * (bndry_info.nsubjects+1)).from_address(bndry_info.out_lbs)
     
 
     def _data_sanity_check(self, data, nsubjects):
@@ -181,22 +175,16 @@ class preprocessor:
     def _setup_data(self, data):
 
         #making sure subject data is contiguous
-        print (data.columns)
         data = data.sort_values(by=['subject', 't_start'])
-
-        self.colnames  = list(data.columns)
         nsubjects = data['subject'].nunique()
 
         self._data_sanity_check(data, nsubjects)
-        self._get_col_indcs()
-
         data  = self._contig_float(data)
 
         return data, nsubjects
 
 
     def _compute_quant(self, data, nrows, ncols, is_cat):
-        self.tpart      = self._contig_float(np.zeros((1, self.num_quantiles)))
         self.quant      = self._contig_float(np.zeros((1, self.num_quantiles*(ncols))))
         self.quant_size = self._contig_size_t(np.zeros((1, ncols)))
 
@@ -212,15 +200,18 @@ class preprocessor:
         is_cat                  = self._contig_bool(np.zeros((1, data.shape[1])))
         for cat_col in is_cat:
             is_cat [0, cat_col] = True
+        self.is_cat             = is_cat
         nrows                   = data.shape[0]
         ncols                   = data.shape[1]
+
+        self.colnames  = list(data.columns)
+        self._set_col_indcs()
 
         data, nsubjects         = self._setup_data(data)
 
         self._compute_quant(data, nrows, ncols, is_cat)
 
         bndry_info              = self._get_boundaries(data, nrows, ncols, nsubjects)
-        self._set_lbs_ubs_ptrs(bndry_info)
         preprocessed            = self._preprocess(data, nrows, ncols, is_cat, bndry_info)
         subjects, X, delta, w   = self._prep_output_df(preprocessed)
         self._free_boundary_info(bndry_info)
@@ -233,7 +224,7 @@ class preprocessor:
         assert ncols == self.ncols-3, "ERROR: ncols in X does not match the trained data"
         return nrows, ncols
 
-    def shift_left(self, X, nthreads=1):
+    def shift_left(self, X):
 
         nrows, ncols = self._post_training_get_X_shape(X)
 
@@ -254,19 +245,22 @@ class preprocessor:
             c_void_p(quant_idxs.ctypes.data),
             c_void_p(self.quant.ctypes.data),
             c_size_t(self.num_quantiles),
-            c_int(nthreads))
+            c_int(self.nthreads))
         
         return processed
 
-    '''
-    def epoch_break_cte_hazard (self, X, nthreads=1): # used for breaking epochs into cte hazard valued intervals
-        nrows, ncols = self._post_training_get_X_shape(X)
-        #make sure sub from 1 to N!
-        self.bndry_info = self._get_boundaries()
-        self._set_lbs_ubs_ptrs()
-        self._preprocess()
-        self._prep_output_df()
-        self._free_boundary_info()
+    def epoch_break_cte_hazard (self, data): # used for breaking epochs into cte hazard valued intervals
+        nrows, ncols    = data.shape
+        data, nsubjects = self._setup_data(data)
+        bndry_info      = self._get_boundaries(data, nrows, ncols, nsubjects)
+        data            = self._preprocess(data, nrows, ncols, self.is_cat, bndry_info)
 
-        return self.subjects, self.X, self.w, self.delta
-    '''
+        new_col_names                  = copy.copy(self.colnames)
+        new_col_names                  = [col for col in new_col_names if col != "delta"]
+        new_col_names[self.t_end_idx]  = 'dt'
+        
+        processed       = pd.DataFrame(data, columns = new_col_names)
+
+        self._free_boundary_info(bndry_info)
+        
+        return processed

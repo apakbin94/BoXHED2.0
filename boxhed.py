@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, TransformerMixin 
 from sklearn.utils.estimator_checks import check_estimator
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
@@ -116,6 +117,19 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
         X = check_array(X, force_all_finite='allow-nan')
 
         return self.boxhed_.predict(self._X_y_to_dmat(X), ntree_limit = ntree_limit)
+
+    def get_surv(self, X, ntree_limit = 0):
+        check_is_fitted(self)
+        cte_hazard_epoch_df            = self.prep.epoch_break_cte_hazard(X)
+        cte_hazard_epoch               = check_array(cte_hazard_epoch_df.drop(columns=["subject", "dt"]), 
+                                            force_all_finite='allow-nan')
+        cte_hazard_epoch               = self._X_y_to_dmat(cte_hazard_epoch)
+        preds                          = self.boxhed_.predict(cte_hazard_epoch, ntree_limit = ntree_limit)
+        cte_hazard_epoch_df ['preds']  = preds
+        cte_hazard_epoch_df ['surv']   = -cte_hazard_epoch_df ['dt'] * cte_hazard_epoch_df ['preds']
+        surv                           = np.exp(cte_hazard_epoch_df.groupby('subject')['surv'].sum()).reset_index()
+        return surv
+        
 
 
     def get_params(self, deep=True):
