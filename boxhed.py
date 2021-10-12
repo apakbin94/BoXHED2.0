@@ -118,7 +118,7 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
 
         return self.boxhed_.predict(self._X_y_to_dmat(X), ntree_limit = ntree_limit)
 
-    def get_surv(self, X, ntree_limit = 0):
+    def get_survival(self, X, ntree_limit = 0):
         check_is_fitted(self)
         cte_hazard_epoch_df            = self.prep.epoch_break_cte_hazard(X)
         cte_hazard_epoch               = check_array(cte_hazard_epoch_df.drop(columns=["subject", "dt"]), 
