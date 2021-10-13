@@ -9,7 +9,7 @@ import math
 from scipy.stats import beta # beta distribution.
 from scipy.stats import norm # normal distribution.
 
-DATA_ADDRESS = "./synth_files/general_censoring/"
+DATA_ADDRESS = "./synth_files/"
 RSLT_ADDRESS = "./results/"
 
 for addr in [RSLT_ADDRESS]:
@@ -22,7 +22,7 @@ use_gpu         = False
 
 # when CPU hist is used, the batch size would be num_gpu * model_per_gpu
 num_gpus = [1]#[4, 6]
-batch_sizes = [20]#[8, 10]
+batch_sizes = [10]#[8, 10]
 
 # calc_L2: calculate L2 distance and its 95% confidence interval.
 # Input:
@@ -130,7 +130,7 @@ def cols_to_include (col_names, num_irr):
 
 @exec_if_not_cached
 def _read_synth(exp_num, num_irr):
-    data = pd.read_csv(os.path.join(DATA_ADDRESS, "exp_%d__num_irr_40__train.csv"%exp_num))
+    data = pd.read_csv(os.path.join(DATA_ADDRESS, f"exp_{exp_num}__num_irr_40__recurring_False__p_drop_0.0__train.csv"))
     col_included = cols_to_include(data.columns, num_irr)
     data = data.loc[:, col_included]
 
@@ -138,7 +138,7 @@ def _read_synth(exp_num, num_irr):
 
 @exec_if_not_cached
 def _read_synth_test(exp_num, num_irr):
-    data = pd.read_csv(os.path.join(DATA_ADDRESS, "exp_%d__num_irr_40__test.csv"%exp_num))
+    data = pd.read_csv(os.path.join(DATA_ADDRESS, f"exp_{exp_num}__num_irr_40__recurring_False__p_drop_0.0__test.csv"))
     col_included = cols_to_include(data.columns, num_irr)
 
     data = data.loc[:, col_included]
@@ -201,7 +201,7 @@ def cv_synth(exp_num, num_irr, num_gpu, batch_size):
             #is_cat           = [4],
             num_quantiles = num_quantiles, 
             weighted         = False, 
-            nthreads         = -1)
+            nthreads         = batch_size)
 
     rslt["prep_time"] = prep_timer.get_dur()
     
