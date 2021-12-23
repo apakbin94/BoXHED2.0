@@ -55,13 +55,13 @@ class preprocessor{
 
     public :
 
-        preprocessor(const T* data_, const size_t nrows_, const size_t ncols_, const bool* is_cat_, const boundary_info* bndry_info_, T* out_data_, const T* quant_arr, const size_t* quant_size_arr, const size_t num_quantiles_, const size_t t_start_idx_, const size_t t_end_idx_, const size_t delta_idx_, const size_t pat_col_idx_):
+        preprocessor(const T* data_, const size_t nrows_, const size_t ncols_, const bool* is_cat_, const boundary_info* bndry_info_, T* out_data_, const T* quant_arr, const size_t* quant_size_arr, const size_t num_quantiles_, const size_t t_start_idx_, const size_t t_end_idx_, const size_t delta_idx_, const size_t id_col_idx_):
             data(data_),
             nrows(nrows_),
             ncols(ncols_),
             is_cat(is_cat_),
             bndry_info(bndry_info_),
-            nsubjects(bndry_info->nsubjects),
+            nIDs(bndry_info->nIDs),
             out_data(out_data_),
             out_nrows(bndry_info->out_nrows),
             tquant(std::vector<T>(
@@ -75,7 +75,7 @@ class preprocessor{
             t_end_idx(t_end_idx_),
             dt_idx(t_end_idx),
             delta_idx(delta_idx_),
-            pat_col_idx(pat_col_idx_)
+            id_col_idx(id_col_idx_)
             {}
 
 
@@ -100,7 +100,7 @@ class preprocessor{
                     std::isnan(val)         ||
                     col_idx == t_start_idx  ||
                     col_idx == t_end_idx    || 
-                    col_idx == pat_col_idx  || 
+                    col_idx == id_col_idx  || 
                     col_idx == delta_idx
                     ){
 
@@ -141,10 +141,10 @@ class preprocessor{
             quantize_non_time_columns();
 
             #pragma omp parallel for schedule(static)
-            for (size_t pat_idx=0; pat_idx<nsubjects; ++pat_idx){
+            for (size_t id_idx=0; id_idx<nIDs; ++id_idx){
             
                 try {
-                    _preprocess_one_subject(pat_idx);
+                    _preprocess_one_id(id_idx);
                 } catch (std::invalid_argument& e){
                     err<<e.what()<<std::endl;
                     throw;
@@ -153,24 +153,11 @@ class preprocessor{
         }
 
     private:
-        /*
-        maybe for posterity if we want to not include subject number
-        */
-        /*
-        inline int _cnvrt_out_col(int col_idx){
-            if (col_idx == pat_col_idx)
-                throw std::invalid_argument("ERROR: col_indx cannot be equal to pat_col_idx");
-            return (col_idx<pat_col_idx)?col_idx:col_idx-1;
-        }
-        */
-
-        inline void _preprocess_one_subject (size_t pat_idx){
-            
-            //const pat_lb_ub* _pat_lb_ub  = &pat_lb_ubs[pat_idx];
-            const size_t in_lb  = bndry_info->in_lbs[pat_idx];
-            const size_t in_ub  = bndry_info->in_lbs[pat_idx+1]-1;
-            const size_t out_lb = bndry_info->out_lbs[pat_idx];
-            const size_t out_ub = bndry_info->out_lbs[pat_idx+1]-1;
+        inline void _preprocess_one_id (size_t id_idx){
+            const size_t in_lb  = bndry_info->in_lbs[id_idx];
+            const size_t in_ub  = bndry_info->in_lbs[id_idx+1]-1;
+            const size_t out_lb = bndry_info->out_lbs[id_idx];
+            const size_t out_ub = bndry_info->out_lbs[id_idx+1]-1;
 
             size_t out_row = out_lb;
             for (size_t row = in_lb; row<=in_ub; ++row){
@@ -204,10 +191,8 @@ class preprocessor{
                 bool first_row_to_fill = true;
                 for (;out_row < curr_row_ub; ++out_row){
                     for (size_t col=0; col<ncols; ++col){
-                        //if (col==pat_col_idx || col==t_start_idx || col==t_end_idx)
                         if (col==t_start_idx || col==t_end_idx)
                             continue;
-                        //out_data[out_row*ncols + col] = data[row*ncols+col];
                         out_data[out_row*ncols + col] = temp_quantized_data[row*ncols+col];
 
                     }
@@ -225,7 +210,6 @@ class preprocessor{
                     if (rows_to_fill > 1){
                         T dt_ = 0.0;
                         if (first_row_to_fill){
-                            //dt_ = *(std::next(tquant_iter)) - data[row*ncols + t_start_idx];
                             dt_ = *(std::next(tquant_iter)) - temp_quantized_data[row*ncols + t_start_idx];
 
                             first_row_to_fill = false;
@@ -242,7 +226,7 @@ class preprocessor{
             }
             if (out_row-1 != out_ub){
                 std::stringstream err_str;
-                err_str << "ERROR: loop reached its end for subject index"<<" "<<pat_idx<<"."<<" Check the corresponding subject data.";
+                err_str << "ERROR: loop reached its end for ID "<<" "<<id_idx+1<<"."<<" Check the corresponding ID data.";
                 throw std::invalid_argument(err_str.str());
             }
         }
@@ -253,7 +237,7 @@ class preprocessor{
         const bool* is_cat;
         const boundary_info* bndry_info;
 
-        const size_t nsubjects;
+        const size_t nIDs;
 
         T* out_data;
         const size_t out_nrows;
@@ -267,41 +251,41 @@ class preprocessor{
         const size_t t_end_idx;
         const size_t dt_idx;
         const size_t delta_idx;
-        const size_t pat_col_idx;
+        const size_t id_col_idx;
 
 };
 
 
 
 template <class T>
-class pat_lb_ub_calculator{
+class id_lb_ub_calculator{
 
     public:
 
-        pat_lb_ub_calculator(const T* data_, const size_t nrows_, const size_t ncols_, const size_t nsubjects_, const T* quant_arr, const size_t* quant_size, const size_t num_quantiles, const size_t t_start_idx_, const size_t pat_col_idx_, size_t t_end_idx_):
+        id_lb_ub_calculator(const T* data_, const size_t nrows_, const size_t ncols_, const size_t nIDs_, const T* quant_arr, const size_t* quant_size, const size_t num_quantiles, const size_t t_start_idx_, const size_t id_col_idx_, size_t t_end_idx_):
             data(data_),
             nrows(nrows_),
             ncols(ncols_),
-            nsubjects(nsubjects_),
+            nIDs(nIDs_),
             tquant(std::vector<T>(
                         quant_arr+t_start_idx_*num_quantiles, 
                         quant_arr+t_start_idx_*num_quantiles
                         + quant_size[t_start_idx_])),
             t_start_idx(t_start_idx_),
-            pat_col_idx(pat_col_idx_),
+            id_col_idx(id_col_idx_),
             t_end_idx(t_end_idx_),
-            in_lbs(new size_t[nsubjects+1]),
-            out_lbs(new size_t[nsubjects+1])
+            in_lbs(new size_t[nIDs+1]),
+            out_lbs(new size_t[nIDs+1])
             {}
 
 
-        ~pat_lb_ub_calculator(){
+        ~id_lb_ub_calculator(){
             tquant.clear();
         }
 
         boundary_info* get_boundaries(){
             _get_boundaries();
-            boundary_info* bndry_info = new boundary_info(nsubjects, out_nrows, in_lbs, out_lbs);
+            boundary_info* bndry_info = new boundary_info(nIDs, out_nrows, in_lbs, out_lbs);
             return bndry_info;
         }
 
@@ -309,42 +293,38 @@ class pat_lb_ub_calculator{
 
          void _get_boundaries(){
             //XXX: assuming data of subjects in chronological order, and contiguous
-            //XXX: now assuming subject ids from one to N
+            //XXX: now assuming ids from one to N
 
-            int last_subject=1, curr_subject = 1;
+            int last_id=1, curr_id = 1;
             size_t in_lb  = 0;
             size_t out_lb = 0;
 
             for (size_t row=0; row<nrows; ++row){
-                curr_subject = data[row*ncols+pat_col_idx];
+                curr_id = data[row*ncols+id_col_idx];
 
-                if (curr_subject == last_subject)
+                if (curr_id == last_id)
                     continue;
 
                 size_t out_len = _out_len(in_lb, row-1);
 
-                //_pat_lb_ubs[last_subject-1].set(last_subject, in_lb, row-1, out_lb, out_lb+out_len-1);
-                in_lbs[last_subject-1]=in_lb;
-                out_lbs[last_subject-1]=out_lb;
+                in_lbs[last_id-1]=in_lb;
+                out_lbs[last_id-1]=out_lb;
 
                 in_lb = row;
                 out_lb += out_len;
-                last_subject = curr_subject;
+                last_id = curr_id;
             }
 
             size_t out_len = _out_len(in_lb, nrows-1);
             size_t last_ub = out_lb + out_len;
 
-            //_pat_lb_ubs[last_subject-1].set(last_subject, in_lb, nrows-1, out_lb, last_ub);
-            in_lbs[last_subject-1]=in_lb;
-            out_lbs [last_subject-1]=out_lb;
+            in_lbs[last_id-1]=in_lb;
+            out_lbs [last_id-1]=out_lb;
 
-            in_lbs[last_subject]=nrows;
-            out_lbs[last_subject]=last_ub;
+            in_lbs[last_id]=nrows;
+            out_lbs[last_id]=last_ub;
 
             out_nrows  = last_ub;
-            //pat_lb_ubs = _pat_lb_ubs;
-
         }  
 
         inline size_t _out_len(size_t lb, size_t ub){
@@ -368,11 +348,11 @@ class pat_lb_ub_calculator{
         const T* data;
         const size_t nrows;
         const size_t ncols;
-        const size_t nsubjects;
+        const size_t nIDs;
         std::vector<T> tquant;
 
         size_t t_start_idx;
-        size_t pat_col_idx;
+        size_t id_col_idx;
         size_t t_end_idx;   
 
         size_t out_nrows;
@@ -439,11 +419,11 @@ inline void _copy_col2arr(const T* src, size_t nrows, size_t ncols,
 
 
 template <class T>
-inline void _compute_quant(const T* data, size_t nrows, size_t ncols, const bool* is_cat, size_t t_start_idx, size_t t_end_idx, size_t pat_idx, size_t delta_idx, T* quant, size_t* quant_size, size_t num_quantiles){
+inline void _compute_quant(const T* data, size_t nrows, size_t ncols, const bool* is_cat, size_t t_start_idx, size_t t_end_idx, size_t id_idx, size_t delta_idx, T* quant, size_t* quant_size, size_t num_quantiles){
  
     #pragma omp parallel for schedule(dynamic)
     for (size_t col_idx = 0; col_idx<ncols; ++col_idx){
-        if (is_cat[col_idx] || col_idx == t_end_idx || col_idx == pat_idx || col_idx == delta_idx){
+        if (is_cat[col_idx] || col_idx == t_end_idx || col_idx == id_idx || col_idx == delta_idx){
             continue;
         }
         size_t vals_size = (col_idx==t_start_idx) ? 2*nrows : nrows;
@@ -482,9 +462,9 @@ inline void _compute_quant(const T* data, size_t nrows, size_t ncols, const bool
 template <class T>
 inline void _fill_time_hist(const T* unique_arr, const size_t unique_arr_size, 
                             const T* data, size_t nrows, size_t ncols,
-                            size_t t_start_idx, size_t t_end_idx, //size_t pat_idx,
+                            size_t t_start_idx, size_t t_end_idx,
                             size_t* hist){
-    //TODO: maybe pat_idx for searching optimization??
+    //TODO: maybe id_idx for searching optimization??
 
     std::vector<T> unique_arr_vec (unique_arr, unique_arr + unique_arr_size);
 
@@ -619,13 +599,13 @@ inline void normalize (T* arr, size_t size, T norm_factor){
 }
 
 template <class T>
-void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, const bool* is_cat, size_t t_start_idx, size_t t_end_idx, size_t pat_idx, size_t delta_idx, T* quant, size_t* quant_size, size_t num_quantiles){
+void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, const bool* is_cat, size_t t_start_idx, size_t t_end_idx, size_t id_idx, size_t delta_idx, T* quant, size_t* quant_size, size_t num_quantiles){
 
     T total_t = _compute_total_t(data, nrows, ncols, t_start_idx, t_end_idx);
     
     #pragma omp parallel for schedule(dynamic)
     for (size_t col_idx = 0; col_idx<ncols; ++col_idx){
-        if (is_cat[col_idx] || col_idx == t_end_idx || col_idx == pat_idx || col_idx == delta_idx){
+        if (is_cat[col_idx] || col_idx == t_end_idx || col_idx == id_idx || col_idx == delta_idx){
             continue;
         }
         size_t vals_size = (col_idx==t_start_idx) ? 2*nrows : nrows;
@@ -667,7 +647,7 @@ void _compute_quant_weighted(const T* data, size_t nrows, size_t ncols, const bo
 
             _fill_time_hist(unique, num_unique, 
                             data, nrows, ncols,
-                            t_start_idx, t_end_idx, //pat_idx,
+                            t_start_idx, t_end_idx,
                             vals_hist);
             T *time_diff = new T[num_unique];
 
@@ -718,7 +698,7 @@ void preprocess(
                     const size_t         t_start_idx, 
                     const size_t         t_end_idx, 
                     const size_t         delta_idx, 
-                    const size_t         pat_col_idx, 
+                    const size_t         id_col_idx, 
                     const int            nthreads
                     ){
 
@@ -732,7 +712,7 @@ void preprocess(
         omp_set_num_threads(nthreads);
 #endif
 
-    preprocessor<double> preprocessor_ (data, nrows, ncols, is_cat, bndry_info, out_data, quant_arr, quant_size, num_quantiles, t_start_idx, t_end_idx, delta_idx, pat_col_idx);
+    preprocessor<double> preprocessor_ (data, nrows, ncols, is_cat, bndry_info, out_data, quant_arr, quant_size, num_quantiles, t_start_idx, t_end_idx, delta_idx, id_col_idx);
     
     try {
         preprocessor_.preprocess();
@@ -748,8 +728,8 @@ boundary_info* get_boundaries(
         const void* data_v, 
         size_t nrows, 
         size_t ncols, 
-        size_t nsubjects, 
-        size_t pat_col_idx, 
+        size_t nIDs, 
+        size_t id_col_idx, 
         size_t t_start_idx, 
         size_t t_end_idx, 
         const void* quant_v, 
@@ -761,9 +741,9 @@ boundary_info* get_boundaries(
     const double* quant_arr  = (double *) quant_v;
     const size_t* quant_size = (size_t *) quant_size_v;
        
-    pat_lb_ub_calculator<double> pat_lb_ub_calculator_ = pat_lb_ub_calculator<double>(data, nrows, ncols, nsubjects, quant_arr, quant_size, num_quantiles, t_start_idx, pat_col_idx, t_end_idx);
+    id_lb_ub_calculator<double> id_lb_ub_calculator_ = id_lb_ub_calculator<double>(data, nrows, ncols, nIDs, quant_arr, quant_size, num_quantiles, t_start_idx, id_col_idx, t_end_idx);
 
-    return pat_lb_ub_calculator_.get_boundaries();
+    return id_lb_ub_calculator_.get_boundaries();
 
 }
 
@@ -776,7 +756,7 @@ void compute_quant(
         void* is_cat_v, 
         size_t t_start_idx, 
         size_t t_end_idx, 
-        size_t pat_idx, 
+        size_t id_idx, 
         size_t delta_idx, 
         void* quant_v, 
         void* quant_size_v, 
@@ -795,10 +775,10 @@ void compute_quant(
 #endif
 
     if (weighted){
-        _compute_quant_weighted<double> (data, nrows, ncols, is_cat, t_start_idx, t_end_idx, pat_idx, delta_idx, quant, quant_size, num_quantiles);
+        _compute_quant_weighted<double> (data, nrows, ncols, is_cat, t_start_idx, t_end_idx, id_idx, delta_idx, quant, quant_size, num_quantiles);
     }
     else{
-        _compute_quant<double> (data, nrows, ncols, is_cat, t_start_idx, t_end_idx, pat_idx, delta_idx, quant, quant_size, num_quantiles);
+        _compute_quant<double> (data, nrows, ncols, is_cat, t_start_idx, t_end_idx, id_idx, delta_idx, quant, quant_size, num_quantiles);
     }
 }
 

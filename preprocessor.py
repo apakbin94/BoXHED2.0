@@ -7,7 +7,7 @@ import copy
 class preprocessor:
 
     class c_boundary_info (Structure):
-        _fields_ = [("nsubjects", c_size_t), 
+        _fields_ = [("nIDs", c_size_t), 
                     ("out_nrows", c_size_t), 
                     ("in_lbs",    c_void_p),
                     ("out_lbs",   c_void_p)]
@@ -25,7 +25,7 @@ class preprocessor:
                 c_void_p, #is_cat_v
                 c_size_t, #t_start_idx
                 c_size_t, #t_end_idx
-                c_size_t, #pat_idx
+                c_size_t, #id_idx
                 c_size_t, #delta_idx
                 c_void_p, #quant_v
                 c_void_p, #quant_size_v
@@ -40,7 +40,7 @@ class preprocessor:
                 c_size_t, #nrows
                 c_size_t, #ncols
                 c_size_t, #nsubjects
-                c_size_t, #pat_col_idx
+                c_size_t, #id_col_idx
                 c_size_t, #t_start_idx
                 c_size_t, #t_end_idx
                 c_void_p, #quant_v
@@ -62,7 +62,7 @@ class preprocessor:
                 c_size_t, #t_start_idx 
                 c_size_t, #t_end_idx
                 c_size_t, #delta_idx
-                c_size_t, #pat_col_idx
+                c_size_t, #id_col_idx
                 c_int     #nthreads 
                 ]
 
@@ -85,7 +85,7 @@ class preprocessor:
 
     def _set_col_indcs(self):
         self.t_start_idx = self.colnames.index('t_start')
-        self.pat_idx     = self.colnames.index('subject')
+        self.id_idx      = self.colnames.index('ID')
         self.t_end_idx   = self.colnames.index('t_end')
         self.delta_idx   = self.colnames.index('delta') #TODO: either 0 or 1
 
@@ -106,7 +106,7 @@ class preprocessor:
             c_void_p(is_cat.ctypes.data),
             c_size_t(self.t_start_idx), 
             c_size_t(self.t_end_idx), 
-            c_size_t(self.pat_idx), 
+            c_size_t(self.id_idx), 
             c_size_t(self.delta_idx), 
             c_void_p(self.quant.ctypes.data), 
             c_void_p(self.quant_size.ctypes.data),
@@ -121,7 +121,7 @@ class preprocessor:
             c_size_t(nrows), 
             c_size_t(ncols), 
             c_size_t(nsubjects), 
-            c_size_t(self.pat_idx), 
+            c_size_t(self.id_idx), 
             c_size_t(self.t_start_idx), 
             c_size_t(self.t_end_idx), 
             c_void_p(self.quant.ctypes.data), 
@@ -145,7 +145,7 @@ class preprocessor:
                 c_size_t(self.t_start_idx), 
                 c_size_t(self.t_end_idx), 
                 c_size_t(self.delta_idx), 
-                c_size_t(self.pat_idx), 
+                c_size_t(self.id_idx), 
                 c_int(self.nthreads))
 
         return preprocessed
@@ -159,29 +159,29 @@ class preprocessor:
         new_col_names[self.t_end_idx]  = 'dt'
 
         preprocessed = pd.DataFrame(preprocessed, columns = new_col_names)
-        subjects     = preprocessed['subject']
+        id           = preprocessed['ID']
         #self.y           = self.preprocessed[['delta', 'dt']]
         w            = preprocessed['dt']
         delta        = preprocessed['delta']
-        X            = preprocessed.drop(columns = ['subject', 'delta', 'dt'])
+        X            = preprocessed.drop(columns = ['ID', 'delta', 'dt'])
 
-        return subjects, X, delta, w
+        return id, X, delta, w
     
 
-    def _data_sanity_check(self, data, nsubjects):
+    def _data_sanity_check(self, data):
         assert data.ndim==2,"ERROR: data needs to be 2 dimensional"
-        assert data['subject'].between(1, nsubjects).all(),"ERROR: Patients need to be numbered from 1 to # subjects"
+        #assert data['subject'].between(1, nIDs).all(),"ERROR: Patients need to be numbered from 1 to # subjects"
 
     def _setup_data(self, data):
 
         #making sure subject data is contiguous
         data = data.sort_values(by=['subject', 't_start'])
-        nsubjects = data['subject'].nunique()
+        nIDs = data['ID'].nunique()
 
-        self._data_sanity_check(data, nsubjects)
+        self._data_sanity_check(data, nIDs)
         data  = self._contig_float(data)
 
-        return data, nsubjects
+        return data, nIDs
 
 
     def _compute_quant(self, data, nrows, ncols, is_cat):
@@ -190,7 +190,7 @@ class preprocessor:
 
         self.__compute_quant(data, nrows, ncols, is_cat)
 
-    def preprocess(self, data, is_cat=[], num_quantiles=20, weighted=False, nthreads=1):
+    def preprocess(self, data, is_cat=[], num_quantiles=256, weighted=False, nthreads=1):
         #TODO: maye change how the data is given? pat, X, y?
 
         #XXX: using np.float64---c_double
@@ -207,11 +207,11 @@ class preprocessor:
         self.colnames  = list(data.columns)
         self._set_col_indcs()
 
-        data, nsubjects         = self._setup_data(data)
+        data, nIDs              = self._setup_data(data)
 
         self._compute_quant(data, nrows, ncols, is_cat)
 
-        bndry_info              = self._get_boundaries(data, nrows, ncols, nsubjects)
+        bndry_info              = self._get_boundaries(data, nrows, ncols, nIDs)
         preprocessed            = self._preprocess(data, nrows, ncols, is_cat, bndry_info)
         subjects, X, delta, w   = self._prep_output_df(preprocessed)
         self._free_boundary_info(bndry_info)
@@ -250,10 +250,10 @@ class preprocessor:
         return processed
 
     def epoch_break_cte_hazard (self, data): # used for breaking epochs into cte hazard valued intervals
-        nrows, ncols    = data.shape
-        data, nsubjects = self._setup_data(data)
-        bndry_info      = self._get_boundaries(data, nrows, ncols, nsubjects)
-        data            = self._preprocess(data, nrows, ncols, self.is_cat, bndry_info)
+        nrows, ncols  = data.shape
+        data, nIDs    = self._setup_data(data)
+        bndry_info    = self._get_boundaries(data, nrows, ncols, nIDs)
+        data          = self._preprocess(data, nrows, ncols, self.is_cat, bndry_info)
         
         processed       = pd.DataFrame(data, columns = self.colnames)
         processed.rename(columns={"t_end": "dt"}, inplace=True)

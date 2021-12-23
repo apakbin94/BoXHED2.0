@@ -13,14 +13,14 @@ template<class T>
 class df;
 
 typedef struct boundary_info_{
-    boundary_info_(size_t nsubjects_, size_t out_nrows_, size_t* in_lbs_, size_t* out_lbs_):
-        nsubjects(nsubjects_),
+    boundary_info_(size_t nIDs_, size_t out_nrows_, size_t* in_lbs_, size_t* out_lbs_):
+        nIDs(nIDs_),
         out_nrows(out_nrows_),
         in_lbs(in_lbs_),
         out_lbs(out_lbs_)
         {}
 
-    size_t  nsubjects;
+    size_t  nIDs;
     size_t  out_nrows;
     size_t* in_lbs;
     size_t* out_lbs;
@@ -50,7 +50,7 @@ void preprocess(
                     const size_t         t_start_idx, 
                     const size_t         t_end_idx, 
                     const size_t         delta_idx, 
-                    const size_t         pat_col_idx, 
+                    const size_t         id_col_idx, 
                     const int            nthreads
                     );
 
@@ -59,7 +59,7 @@ boundary_info* get_boundaries(
         size_t nrows, 
         size_t ncols, 
         size_t nsubjects, 
-        size_t pat_col_idx, 
+        size_t id_col_idx, 
         size_t t_start_idx, 
         size_t t_end_idx, 
         const void* quant_v, 
@@ -75,7 +75,7 @@ void compute_quant(
         void* is_cat_v, 
         size_t t_start_idx, 
         size_t t_end_idx, 
-        size_t pat_idx, 
+        size_t id_idx, 
         size_t delta_idx, 
         void* quant_v, 
         void* quant_size_v, 
