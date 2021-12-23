@@ -141,10 +141,10 @@ class preprocessor{
             quantize_non_time_columns();
 
             #pragma omp parallel for schedule(static)
-            for (size_t id_idx=0; id_idx<nIDs; ++id_idx){
+            for (size_t idx=0; idx<nIDs; ++idx){
             
                 try {
-                    _preprocess_one_id(id_idx);
+                    _preprocess_one_id(idx);
                 } catch (std::invalid_argument& e){
                     err<<e.what()<<std::endl;
                     throw;
@@ -153,11 +153,11 @@ class preprocessor{
         }
 
     private:
-        inline void _preprocess_one_id (size_t id_idx){
-            const size_t in_lb  = bndry_info->in_lbs[id_idx];
-            const size_t in_ub  = bndry_info->in_lbs[id_idx+1]-1;
-            const size_t out_lb = bndry_info->out_lbs[id_idx];
-            const size_t out_ub = bndry_info->out_lbs[id_idx+1]-1;
+        inline void _preprocess_one_id (size_t idx){
+            const size_t in_lb  = bndry_info->in_lbs[idx];
+            const size_t in_ub  = bndry_info->in_lbs[idx+1]-1;
+            const size_t out_lb = bndry_info->out_lbs[idx];
+            const size_t out_ub = bndry_info->out_lbs[idx+1]-1;
 
             size_t out_row = out_lb;
             for (size_t row = in_lb; row<=in_ub; ++row){
@@ -226,7 +226,7 @@ class preprocessor{
             }
             if (out_row-1 != out_ub){
                 std::stringstream err_str;
-                err_str << "ERROR: loop reached its end for ID "<<" "<<id_idx+1<<"."<<" Check the corresponding ID data.";
+                err_str << "ERROR: loop reached its end for ID "<<out_data[in_lb*ncols + id_col_idx]<<"."<<" Check the corresponding ID data.";
                 throw std::invalid_argument(err_str.str());
             }
         }
@@ -295,10 +295,11 @@ class id_lb_ub_calculator{
             //XXX: assuming data of subjects in chronological order, and contiguous
             //XXX: now assuming ids from one to N
 
-            int last_id=1, curr_id = 1;
+            int last_id   = data[id_col_idx], curr_id = last_id;
             size_t in_lb  = 0;
             size_t out_lb = 0;
 
+            size_t idx = 0;
             for (size_t row=0; row<nrows; ++row){
                 curr_id = data[row*ncols+id_col_idx];
 
@@ -307,22 +308,23 @@ class id_lb_ub_calculator{
 
                 size_t out_len = _out_len(in_lb, row-1);
 
-                in_lbs[last_id-1]=in_lb;
-                out_lbs[last_id-1]=out_lb;
+                in_lbs[idx]=in_lb;
+                out_lbs[idx]=out_lb;
 
                 in_lb = row;
                 out_lb += out_len;
                 last_id = curr_id;
+                idx ++;
             }
 
             size_t out_len = _out_len(in_lb, nrows-1);
             size_t last_ub = out_lb + out_len;
 
-            in_lbs[last_id-1]=in_lb;
-            out_lbs [last_id-1]=out_lb;
+            in_lbs[idx]=in_lb;
+            out_lbs [idx]=out_lb;
 
-            in_lbs[last_id]=nrows;
-            out_lbs[last_id]=last_ub;
+            in_lbs[idx+1]=nrows;
+            out_lbs[idx+1]=last_ub;
 
             out_nrows  = last_ub;
         }  

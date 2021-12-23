@@ -175,10 +175,10 @@ class preprocessor:
     def _setup_data(self, data):
 
         #making sure subject data is contiguous
-        data = data.sort_values(by=['ID', 't_start'])
+        #data = data.sort_values(by=['ID', 't_start'])
         nIDs = data['ID'].nunique()
 
-        self._data_sanity_check(data, nIDs)
+        self._data_sanity_check(data)
         data  = self._contig_float(data)
 
         return data, nIDs
@@ -213,6 +213,8 @@ class preprocessor:
 
         bndry_info              = self._get_boundaries(data, nrows, ncols, nIDs)
         preprocessed            = self._preprocess(data, nrows, ncols, is_cat, bndry_info)
+        print (preprocessed)
+        raise
         IDs, X, delta, w        = self._prep_output_df(preprocessed)
         self._free_boundary_info(bndry_info)
 
