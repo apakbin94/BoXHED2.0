@@ -254,12 +254,9 @@ class preprocessor:
         data, nsubjects = self._setup_data(data)
         bndry_info      = self._get_boundaries(data, nrows, ncols, nsubjects)
         data            = self._preprocess(data, nrows, ncols, self.is_cat, bndry_info)
-
-        new_col_names                  = copy.copy(self.colnames)
-        new_col_names                  = [col for col in new_col_names if col != "delta"]
-        new_col_names[self.t_end_idx]  = 'dt'
         
-        processed       = pd.DataFrame(data, columns = new_col_names)
+        processed       = pd.DataFrame(data, columns = self.colnames)
+        processed.rename(columns={"t_end": "dt"}, inplace=True)
 
         self._free_boundary_info(bndry_info)
         
