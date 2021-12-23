@@ -3,6 +3,7 @@ from pytz import timezone
 import os
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
+from py3nvml import get_free_gpus
 import pickle
 from joblib import Parallel, delayed
 import itertools
@@ -22,8 +23,7 @@ CACHE_ADDRESS = './tmp/'
 
 def curr_dat_time ():
     curr_dt = datetime.now(timezone("US/Central"))
-    #return curr_dt.strftime("%a, %b %d, %H:%M:%S")
-    return curr_dt.strftime("%a_%b%d_%H:%M")
+    return curr_dt.strftime("%Y_%m_%d_%H:%M")
 
 
 def create_dir_if_not_exist(path):
