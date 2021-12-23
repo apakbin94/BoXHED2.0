@@ -39,7 +39,7 @@ class preprocessor:
                 c_void_p, #data_v
                 c_size_t, #nrows
                 c_size_t, #ncols
-                c_size_t, #nsubjects
+                c_size_t, #nIDs
                 c_size_t, #id_col_idx
                 c_size_t, #t_start_idx
                 c_size_t, #t_end_idx
@@ -115,12 +115,12 @@ class preprocessor:
             c_int(self.nthreads))
 
 
-    def _get_boundaries(self, data, nrows, ncols, nsubjects):
+    def _get_boundaries(self, data, nrows, ncols, nIDs):
         return self.c_boundary_info.from_address(self.prep_lib.get_boundaries(
             c_void_p(data.ctypes.data), 
             c_size_t(nrows), 
             c_size_t(ncols), 
-            c_size_t(nsubjects), 
+            c_size_t(nIDs), 
             c_size_t(self.id_idx), 
             c_size_t(self.t_start_idx), 
             c_size_t(self.t_end_idx), 
@@ -175,7 +175,7 @@ class preprocessor:
     def _setup_data(self, data):
 
         #making sure subject data is contiguous
-        data = data.sort_values(by=['subject', 't_start'])
+        data = data.sort_values(by=['ID', 't_start'])
         nIDs = data['ID'].nunique()
 
         self._data_sanity_check(data, nIDs)
@@ -213,10 +213,10 @@ class preprocessor:
 
         bndry_info              = self._get_boundaries(data, nrows, ncols, nIDs)
         preprocessed            = self._preprocess(data, nrows, ncols, is_cat, bndry_info)
-        subjects, X, delta, w   = self._prep_output_df(preprocessed)
+        IDs, X, delta, w        = self._prep_output_df(preprocessed)
         self._free_boundary_info(bndry_info)
 
-        return subjects, X, w, delta
+        return IDs, X, w, delta
 
     def _post_training_get_X_shape(self, X):
         assert X.ndim==2,"ERROR: data needs to be 2 dimensional"
