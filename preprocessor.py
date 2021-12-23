@@ -213,8 +213,6 @@ class preprocessor:
 
         bndry_info              = self._get_boundaries(data, nrows, ncols, nIDs)
         preprocessed            = self._preprocess(data, nrows, ncols, is_cat, bndry_info)
-        print (preprocessed)
-        raise
         IDs, X, delta, w        = self._prep_output_df(preprocessed)
         self._free_boundary_info(bndry_info)
 
