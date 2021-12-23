@@ -327,7 +327,6 @@ class id_lb_ub_calculator{
 
             out_nrows  = last_ub;
 
-            std::cout<<idx+1<<"  "<<nIDs<<std::endl;
             if (idx+1!=nIDs){
                 std::stringstream err_str;
                 err_str << "ERROR: The data for each ID need to be in subsequent rows.";
