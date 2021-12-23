@@ -293,7 +293,6 @@ class id_lb_ub_calculator{
 
          void _get_boundaries(){
             //XXX: assuming data of subjects in chronological order, and contiguous
-            //XXX: now assuming ids from one to N
 
             int last_id   = data[id_col_idx], curr_id = last_id;
             size_t in_lb  = 0;
@@ -327,6 +326,13 @@ class id_lb_ub_calculator{
             out_lbs[idx+1]=last_ub;
 
             out_nrows  = last_ub;
+
+            std::cout<<idx+1<<"  "<<nIDs<<std::endl;
+            if (idx+1!=nIDs){
+                std::stringstream err_str;
+                err_str << "ERROR: The data for each ID need to be in subsequent rows.";
+                throw std::invalid_argument(err_str.str());
+            }
         }  
 
         inline size_t _out_len(size_t lb, size_t ub){
