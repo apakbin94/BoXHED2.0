@@ -98,8 +98,7 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
             plot_tree(self.boxhed_, num_trees = i)
             fig = plt.gcf()
             fig.set_size_inches(30, 20)
-            fig.savefig("./RESULTS/"+
-                str(self.tree_method)+"_"+str(i)+'.jpg')
+            fig.savefig("tree"+"_"+str(i)+'.jpg')
 
         for th_id in range(min(nom_trees, self.n_estimators)):
             print_tree(th_id)
@@ -118,17 +117,23 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
 
         return self.boxhed_.predict(self._X_y_to_dmat(X), ntree_limit = ntree_limit)
 
-    def get_survival(self, X, ntree_limit = 0):
+    def get_survival(self, X, t, ntree_limit = 0): #TODO no ind_exp
+        def _truncate_X_to_t(X, t):
+            X          = X[X['t_start']<t]
+            X['t_end'] = X['t_end'].clip(upper=t)
+            return X.reset_index(drop=True)
+
         check_is_fitted(self)
+        X                              = _truncate_X_to_t(X, t)
         cte_hazard_epoch_df            = self.prep.epoch_break_cte_hazard(X)
-        cte_hazard_epoch               = check_array(cte_hazard_epoch_df.drop(columns=["subject", "dt"]), 
+        cte_hazard_epoch               = check_array(cte_hazard_epoch_df.drop(columns=["subject", "dt", "delta"]), 
                                             force_all_finite='allow-nan')
         cte_hazard_epoch               = self._X_y_to_dmat(cte_hazard_epoch)
         preds                          = self.boxhed_.predict(cte_hazard_epoch, ntree_limit = ntree_limit)
         cte_hazard_epoch_df ['preds']  = preds
         cte_hazard_epoch_df ['surv']   = -cte_hazard_epoch_df ['dt'] * cte_hazard_epoch_df ['preds']
-        surv                           = np.exp(cte_hazard_epoch_df.groupby('subject')['surv'].sum()).reset_index()
-        return surv
+        surv_t                         = np.exp(cte_hazard_epoch_df.groupby('subject')['surv'].sum()).reset_index()
+        return surv_t
         
 
 
