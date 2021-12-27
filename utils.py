@@ -8,6 +8,8 @@ import pickle
 from joblib import Parallel, delayed
 import itertools
 from collections import namedtuple
+from scipy.stats import beta # beta distribution.
+import math
 
 
 import warnings
@@ -20,6 +22,21 @@ sys.path.append(os.path.join(os.path.expanduser("~"), "survival_analysis/BoXHED2
 
 CACHE_ADDRESS = './tmp/'
 
+# calc_L2: calculate L2 distance and its 95% confidence interval.
+def calc_L2(pred, true):
+    L2 = (pred-true)**2
+    N = pred.shape[0]
+    meanL2_sqr = sum(L2)/N # L2 distance
+    sdL2_sqr = math.sqrt(sum((L2-meanL2_sqr)**2)/(N-1))
+    meanL2 = math.sqrt(meanL2_sqr)
+    return {'point_estimate' : meanL2, 
+            'lower_CI'       : meanL2-1.96*sdL2_sqr/2/meanL2/math.sqrt(N),
+            'higher_CI'      : meanL2+1.96*sdL2_sqr/2/meanL2/math.sqrt(N)}
+
+#%%
+# calculate values of hazard function on testing data.
+def TrueHaz(X):
+    return beta.pdf(X[:,0], 2, 2)*beta.pdf(X[:,1], 2, 2) 
 
 def curr_dat_time ():
     curr_dt = datetime.now(timezone("US/Central"))
