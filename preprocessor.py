@@ -31,7 +31,7 @@ class preprocessor:
                 c_void_p, #quant_size_v
                 c_size_t, #num_quantiles
                 c_bool,   #weighted
-                c_int     #nthreads
+                c_int     #nthread
                 ]
 
         self.prep_lib.get_boundaries.restype   = c_void_p
@@ -63,7 +63,7 @@ class preprocessor:
                 c_size_t, #t_end_idx
                 c_size_t, #delta_idx
                 c_size_t, #id_col_idx
-                c_int     #nthreads 
+                c_int     #nthread 
                 ]
 
         self.prep_lib.free_boundary_info.restype  = None
@@ -79,7 +79,7 @@ class preprocessor:
                 c_void_p, #quant_idx_v
                 c_void_p, #quant_v
                 c_size_t, #num_quantiles
-                c_int     #nthreads
+                c_int     #nthread
                 ]
  
 
@@ -112,7 +112,7 @@ class preprocessor:
             c_void_p(self.quant_size.ctypes.data),
             c_size_t(self.num_quantiles),
             c_bool(self.weighted),
-            c_int(self.nthreads))
+            c_int(self.nthread))
 
 
     def _get_boundaries(self, data, nrows, ncols, nIDs):
@@ -146,7 +146,7 @@ class preprocessor:
                 c_size_t(self.t_end_idx), 
                 c_size_t(self.delta_idx), 
                 c_size_t(self.id_idx), 
-                c_int(self.nthreads))
+                c_int(self.nthread))
 
         return preprocessed
 
@@ -190,11 +190,11 @@ class preprocessor:
 
         self.__compute_quant(data, nrows, ncols, is_cat)
 
-    def preprocess(self, data, is_cat=[], num_quantiles=256, weighted=False, nthreads=1):
+    def preprocess(self, data, is_cat=[], num_quantiles=256, weighted=False, nthread=1):
         #TODO: maye change how the data is given? pat, X, y?
 
         #XXX: using np.float64---c_double
-        self.nthreads           = nthreads
+        self.nthread            = nthread
         self.num_quantiles      = min(num_quantiles, 256)
         self.weighted           = weighted
         is_cat                  = self._contig_bool(np.zeros((1, data.shape[1])))
@@ -245,7 +245,7 @@ class preprocessor:
             c_void_p(quant_idxs.ctypes.data),
             c_void_p(self.quant.ctypes.data),
             c_size_t(self.num_quantiles),
-            c_int(self.nthreads))
+            c_int(self.nthread))
         
         return processed
 
