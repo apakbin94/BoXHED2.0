@@ -37,9 +37,9 @@ for addr in [RSLT_ADDRESS]:
 #	1	    0.064333	0.135136	0.308475	0.0
 #	1	    0.194810	0.223106	0.614977	1.0
 #	1	    0.223106	0.248753	0.614977	0.0
-#	2   	0.795027	0.841729	0.196407    1.0
-#	2   	0.841729	0.886587	0.196407	0.0
-#	2   	0.886587	0.949803	0.671227	0.0
+#	2       0.795027	0.841729	0.196407    1.0
+#	2       0.841729	0.886587	0.196407	0.0
+#	2       0.886587	0.949803	0.671227	0.0
 #
 # As can be seen above, t_start<T_end for each epoch (row). Also, the beginning of one epoch starts no earlier than
 # the end of the previous one, i.e. t_end_i <= t_start_i+1 . Delta denotes whether an event (possibly recurrent) 
