@@ -88,6 +88,8 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
         self.boxhed_ = xgb.train( self.params_, 
                                   dmat_, 
                                   num_boost_round = self.n_estimators) 
+
+        self.VarImps = {col[1:]:val for (col,val) in self.boxhed_.get_fscore().items()}
         return self
 
         
