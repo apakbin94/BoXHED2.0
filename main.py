@@ -32,7 +32,7 @@ for addr in [RSLT_ADDRESS]:
 #            * t_end:   the end time of the epoch
 #            * X_i:     values of covariates between t_start and t_end
 # Sample Output:
-# subject	t_start	      t_end	      X_0	   delta
+# subject	t_start     t_end       X_0         delta
 #	1       0.010000	0.064333	0.152407	0.0
 #	1       0.064333	0.135136	0.308475	0.0
 #	1       0.194810	0.223106	0.614977	1.0
