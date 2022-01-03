@@ -49,7 +49,7 @@ Here are the flags that can be passed to the installer:
 - '-v': If you are a Windows user and are installing for Windows Visual Studio, the version can be passed using this flag (14, 15, and 16 are supported). For 14 for example, you may run 'bash setup.sh -v 14'
 - '-g': If you want the code to be compiled with GPU support, you may pass the '-g' flag. Please note that this is only supported for Linux users at the moment. 
 
-Now run the *main.py* file for a quick demonstration of how to train/test a BoXHED model on a synthetic dataset. Please refer to this file for proper usage of BoXHED2.0.
+then run the *main.py* file for a quick demonstration of how to train/test a BoXHED model on a synthetic dataset. Please refer to this file for proper usage of BoXHED2.0.
 ```
 python main.py
 ``` 
