@@ -69,19 +69,17 @@ def read_test_data():
     return test_data, TrueHaz(test_data[['t', 'X_0']].values)
 
 
-# Function: cv_train_test_BoXHED2
+# Function: cv_train_BoXHED2
 # Select hyperparameters by K-fold cross-validation, and then fit the BoXHED2.0 hazard estimator
 # Input:
-#      None
+#      @ A pandas dataframe containing training data
 # Return: 
-#      @ A dictionary containing RMSE (with 95% CIs) and timings of different components.
-@run_as_process
-def cv_train_test_BoXHED2():
+#      @ The fitted BoXHED2.0 hazard estimator
+#      @ A dictionary containing timings of different components.
+#@run_as_process
+def cv_train_BoXHED2(train_data):
     # Define the output dictionary
-    out_dict = {}
-
-    #Read in the training data
-    data = read_train_data()
+    train_info_dict = {}
 
     # Preprocess the training data. THIS ONLY NEEDS TO BE DONE ONCE.
     boxhed_ = boxhed()                            # Create an instance of BoXHED
@@ -102,12 +100,12 @@ def cv_train_test_BoXHED2():
     #      @ w:             length of each epoch     
     #      @ delta:         equals one if an event occurred at the end of the epoch; zero otherwise
     ID, X, w, delta = boxhed_.preprocess(
-            data          = data, 
+            data          = train_data, 
             #is_cat       = [],
             num_quantiles = 256, 
             weighted      = False, 
             nthread       = nthread_prep)
-    out_dict["prep_time"] = prep_timer.get_dur()  # calling the get_dur() function.
+    train_info_dict["prep_time"] = prep_timer.get_dur()  # calling the get_dur() function.
     
     # Perform K-fold cross-validation to select hyperparameters {number of trees, tree depth, learning rate} if do_CV = True.
     # Otherwise, users should manually specify hyperparameter values. Note that a tree of depth k has 2^k leaf nodes.
@@ -115,8 +113,11 @@ def cv_train_test_BoXHED2():
     param_manual = {'max_depth':1, 'n_estimators':200}
     
     # Specify the candidate values for the hyperparameters to cross-validate on (more trees and/or deeper trees may be needed for other datasets).
-    param_grid = {'max_depth':    [1, 2, 3, 4, 5],
-              'n_estimators': [50, 100, 150, 200, 250, 300]}
+    param_grid = {
+        'max_depth':    [1, 2, 3, 4, 5],
+        'n_estimators': [50, 100, 150, 200, 250, 300],
+        'eta':          [0.1]
+    }
     
     # Next, specify:
     #      @ gpu_list:    the list of GPU IDs to use for training. Set gpu_list = [-1] to use CPUs.
@@ -148,37 +149,56 @@ def cv_train_test_BoXHED2():
                                   gpu_list,
                                   batch_size)
     
-        out_dict["CV_time"] = cv_timer.get_dur()
+        train_info_dict["CV_time"] = cv_timer.get_dur()
     else:
         best_params = param_manual
     best_params['gpu_id'] = gpu_list[0] # holding on to one GPU id to use for training
     best_params['nthread'] = nthread_train 
 
-    out_dict.update(best_params)
+    train_info_dict.update(best_params)
     boxhed_.set_params(**best_params)
-
     
     # Fit BoXHED to the training data
     fit_timer = timer()
     boxhed_.fit(X, delta, w)
-    out_dict["fit_time"] = fit_timer.get_dur()
+    train_info_dict["fit_time"] = fit_timer.get_dur()
 
-    # Load the test set and the values of the true hazard function at the test points:
-    test_X, test_true_haz = read_test_data()
+    return boxhed_, train_info_dict
 
-   
+
+# Function: test_BoXHED2
+# Select hyperparameters by K-fold cross-validation, and then fit the BoXHED2.0 hazard estimator
+# Input:
+#      @ A trained BoXHED2.0 hazard estimator
+#      @ A numpy matrix containing testing data
+#      @ A numpy vector containing true hazard for training data
+# Return:
+#      @ A dictionary containing RMSE (with 95% CIs) and timings of different components.
+def test_BoXHED2(boxhed_, test_X, test_true_haz):
+    # Define the output dictionary
+    test_info_dict = {}
+
     # Use the fitted model to estimate the value of the hazard function for each row of the test set:
     pred_timer = timer()
     preds = boxhed_.predict(test_X)
-    out_dict["pred_time"] = pred_timer.get_dur()
+    test_info_dict["pred_time"] = pred_timer.get_dur()
 
     # Compute the RMSE of the estimates, and its 95% confidence interval:
     L2 = calc_L2(preds, test_true_haz)
-    out_dict["rmse_CI"] = f"{L2['point_estimate']:.3f} ({L2['lower_CI']:.3f}, {L2['higher_CI']:.3f})"
+    test_info_dict["rmse_CI"] = f"{L2['point_estimate']:.3f} ({L2['lower_CI']:.3f}, {L2['higher_CI']:.3f})"
 
-    return out_dict
-
+    return test_info_dict
 
 if __name__ == "__main__":
-    rslt = cv_train_test_BoXHED2()
-    print (rslt)
+
+    #Read in the training data
+    train_data               = read_train_data()
+    #Train a BoXHED2.0 hazard estimator instance
+    boxhed_, train_info_dict = cv_train_BoXHED2(train_data)
+    print (train_info_dict)
+
+    # Load the test set and the values of the true hazard function at the test points:
+    test_X, test_true_haz = read_test_data()
+    # Test the BoXHED2.0 hazard estimator on out of sample data
+    test_info_dict        = test_BoXHED2(boxhed_, test_X, test_true_haz)
+    print (test_info_dict)
