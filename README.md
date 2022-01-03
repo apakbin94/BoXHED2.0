@@ -16,7 +16,7 @@ The software developed and tested in Linux and Mac OS environments. The requirem
 For Windows users, using [Git for Windows](https://gitforwindows.org/) would significantly ease the installation process. For unifying the approach, we refer to the command line interface as 'terminal' but it could be Git for Windows for Windows users.
 
 We highly recommend devoting a conda environment to BoXHED 2.0. This step makes sure BoXHED 2.0 will not interfere with XGBoost (the library we have borrowed from extensively) when installed. This implementation uses python 3.8.
-Installing the conda environment should be done prioer to opening this notebook. Therefore, you need to set up the environment as instructed here and then reopen this notebook. So, please open a terminal and do the following:
+For installing the conda environment please open a terminal and do the following:
 
 First create the conda environment:
 ```
@@ -36,7 +36,7 @@ Then, go to the directory:
 ```
 cd BoXHED2.0
 ```
-now install numpy, pandas, scikit-learn, pytz, py3nvml, matplotlib and jupyter notebook by:
+now install numpy, pandas, scikit-learn, pytz, py3nvml and matplotlib by:
 ```
 source conda_install_packages.sh
 ```
@@ -47,13 +47,11 @@ source setup.sh
 ```
 Here are the flags that can be passed to the installer:
 - '-v': If you are a Windows user and are installing for Windows Visual Studio, the version can be passed using this flag (14, 15, and 16 are supported). For 14 for example, you may run 'bash setup.sh -v 14'
-- '-g': If you want the code to be compiled with GPU support, you may pass the '-g' flag. Please note that this is only supported for Linux Users at the moment. 
+- '-g': If you want the code to be compiled with GPU support, you may pass the '-g' flag. Please note that this is only supported for Linux users at the moment. 
 
-then run jupyter notebook
+Now run the *main.py* file for a quick demonstration of how to train/test a BoXHED model on a synthetic dataset. Please refer to this file for proper usage of BoXHED2.0.
 ```
-jupyter notebook 
+python main.py
 ``` 
-
-Now open the *tutorial.ipynb* file for a quick demonstration of how to train/test a BoXHED model on a synthetic dataset.
 
 Please note that everytime you relocate the code, you need to run bash setup.sh again.
