@@ -21,6 +21,8 @@ nthread_train   = 20    # number of CPU threads used for training
 for addr in [RSLT_ADDRESS]:
     create_dir_if_not_exist(addr)
 
+
+
 # Function: read_train_data
 # Reads the synthetic training data.
 # Input:
@@ -55,6 +57,7 @@ def read_train_data():
     return pd.read_csv(os.path.join(DATA_ADDRESS, 'training.csv'))
 
 
+
 # Function: read_test_data
 # Reads the synthetic testing data. The values of the true hazard function are also provided for accuracy comparisons.
 # Input:
@@ -67,6 +70,7 @@ def read_train_data():
 def read_test_data():
     test_data = pd.read_csv(os.path.join(DATA_ADDRESS, 'testing.csv'))
     return test_data, TrueHaz(test_data[['t', 'X_0']].values)
+
 
 
 # Function: cv_train_BoXHED2
@@ -107,10 +111,10 @@ def cv_train_BoXHED2(train_data):
             nthread       = nthread_prep)
     train_info_dict["prep_time"] = prep_timer.get_dur()  # calling the get_dur() function.
     
-    # Perform K-fold cross-validation to select hyperparameters {number of trees, tree depth, learning rate} if do_CV = True.
+    # Perform K-fold cross-validation to select hyperparameters {tree depth, number of trees, learning rate} if do_CV = True.
     # Otherwise, users should manually specify hyperparameter values. Note that a tree of depth k has 2^k leaf nodes.
     do_CV = False                                 
-    param_manual = {'max_depth':1, 'n_estimators':200}
+    param_manual = {'max_depth':1, 'n_estimators':200, 'eta':0.1}
     
     # Specify the candidate values for the hyperparameters to cross-validate on (more trees and/or deeper trees may be needed for other datasets).
     param_grid = {
@@ -121,25 +125,27 @@ def cv_train_BoXHED2(train_data):
     
     # Next, specify:
     #      @ gpu_list:    the list of GPU IDs to use for training. Set gpu_list = [-1] to use CPUs.
-    #      @ batch_size:  training batch size, which is the maximum number of BoXHED2.0 instances trained at any point in time. 
-    #                     If we perform 10-fold cross-validation using the param_grid above, we would need to train 5 * 6 * 10 = 300
-    #                     instances in total
-    #                           * When using GPUs, each GPU will train at most batch_size/len(gpu_list) instances at a time
-    #                           * When gpu_list = [-1], batch_size should be the number of CPU threads used, 
-    #                             with each one training one instance at a time
+    #      @ batch_size:  the maximum number of BoXHED2.0 instances trained at any point in time. Example: Performing
+    #                     10-fold cross-validation using the param_grid above requires training 5*6*10 = 300
+    #                     instances in total.
+    #                           * When gpu_list = [-1], batch_size specifies the number of CPU threads to be used, 
+    #                             with each one training one instance at a time.
+    #                           * When using GPUs, each GPU trains at most batch_size/len(gpu_list) instances at a time. Hence
+    #                             if 2 GPUs are used and batch_size = 20, each GPU will train at most 10 instances at a time.
     gpu_list   = [-1]
-    batch_size = 6
+    batch_size = 20
     num_folds  = 5
     if do_CV:
         cv_timer = timer()
-        # call the cv function to perform K-fold cross validation on the training set. 
+        # Call the cv function to perform K-fold cross validation on the training set. 
         # This outputs the cross validation results for the different hyperparameter combinations.
         # Return: 
         #      @ cv_rslts:    mean and st.dev of the log-likelihood value for each hyperparameter combination
         #      @ best_params: The hyper-parameter combination where the mean log-likelihood value is maximized.
-        #                     HOWEVER, we strongly recommend using the one-standard-error rule to select the most parsimonious 
-        #                     combination that is within st.dev/sqrt(k) of the maximum log-likelihood value.
-        #                     See §7.10 in 'Elements of Statistical Learning' by Hastie et al. (2009).
+        #                     WE STRONGLY RECOMMEND AGAINST USING THIS COMBINATON. Instead, use the
+        #                     one-standard-error rule to select the simplest model that is within st.dev/sqrt(k)
+        #                     of the maximum log-likelihood value. See §7.10 in 'Elements of Statistical Learning'
+        #                     by Hastie et al. (2009).
         cv_rslts, best_params = cv(param_grid, 
                                   X, 
                                   w,
@@ -152,7 +158,7 @@ def cv_train_BoXHED2(train_data):
         train_info_dict["CV_time"] = cv_timer.get_dur()
     else:
         best_params = param_manual
-    best_params['gpu_id'] = gpu_list[0] # holding on to one GPU id to use for training
+    best_params['gpu_id'] = gpu_list[0] # Use the first GPU in the list for training
     best_params['nthread'] = nthread_train 
 
     train_info_dict.update(best_params)
@@ -166,15 +172,16 @@ def cv_train_BoXHED2(train_data):
     return boxhed_, train_info_dict
 
 
-# Function: test_BoXHED2
-# Select hyperparameters by K-fold cross-validation, and then fit the BoXHED2.0 hazard estimator
+
+# Function: testRMSE_BoXHED2
+# Calculate the RMSE of the fitted hazard estimator if the true hazard function is available
 # Input:
-#      @ A trained BoXHED2.0 hazard estimator
+#      @ A fitted BoXHED2.0 hazard estimator
 #      @ A numpy matrix containing testing data
 #      @ A numpy vector containing true hazard for training data
 # Return:
 #      @ A dictionary containing RMSE (with 95% CIs) and timings of different components.
-def test_BoXHED2(boxhed_, test_X, test_true_haz):
+def testRMSE_BoXHED2(boxhed_, test_X, test_true_haz):
     # Define the output dictionary
     test_info_dict = {}
 
@@ -189,6 +196,8 @@ def test_BoXHED2(boxhed_, test_X, test_true_haz):
 
     return test_info_dict
 
+
+
 if __name__ == "__main__":
 
     #Read in the training data
@@ -200,5 +209,5 @@ if __name__ == "__main__":
     # Load the test set and the values of the true hazard function at the test points:
     test_X, test_true_haz = read_test_data()
     # Test the BoXHED2.0 hazard estimator on out of sample data
-    test_info_dict        = test_BoXHED2(boxhed_, test_X, test_true_haz)
+    test_info_dict        = testRMSE_BoXHED2(boxhed_, test_X, test_true_haz)
     print (test_info_dict)
