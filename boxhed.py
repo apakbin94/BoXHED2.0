@@ -38,12 +38,14 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
         
     def preprocess(self, data, is_cat=[], num_quantiles=20, weighted=False, nthread=-1):
         self.prep = preprocessor()
-        return self.prep.preprocess(
+        IDs, X, w, delta =  self.prep.preprocess(
             data             = data, 
             is_cat           = is_cat,
             num_quantiles    = num_quantiles, 
             weighted         = weighted, 
             nthread          = nthread)
+        self.X_colnames = X.columns.values.tolist()
+        return IDs, X, w, delta
 
     def fit (self, X, y, w=None):
 
@@ -89,7 +91,8 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
                                   dmat_, 
                                   num_boost_round = self.n_estimators) 
 
-        self.VarImps = {col[1:]:val for (col,val) in self.boxhed_.get_fscore().items()}
+        self.VarImps = {self.X_colnames[int(col[1:])]:val for (col,val) in self.boxhed_.get_fscore().items()}
+        self.VarImps['time'] = self.VarImps.pop('t_start')
         return self
 
         

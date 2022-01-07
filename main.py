@@ -206,6 +206,9 @@ if __name__ == "__main__":
     boxhed_, train_info_dict = cv_train_BoXHED2(train_data)
     print (train_info_dict)
 
+    # Print the feature importances saved as a dictionary
+    print ("feature importances:", boxhed_.VarImps)
+
     # Load the test set and the values of the true hazard function at the test points:
     test_X, test_true_haz = read_test_data()
     # Test the BoXHED2.0 hazard estimator on out of sample data
