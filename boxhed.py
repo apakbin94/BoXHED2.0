@@ -91,7 +91,7 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
                                   dmat_, 
                                   num_boost_round = self.n_estimators) 
 
-        self.VarImps = {self.X_colnames[int(col[1:])]:val for (col,val) in self.boxhed_.get_fscore().items()}
+        self.VarImps = {self.X_colnames[int(col[1:])]:val for (col,val) in self.boxhed_.get_score(importance_type='total_gain').items()}
         self.VarImps['time'] = self.VarImps.pop('t_start')
         return self
 
