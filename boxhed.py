@@ -28,7 +28,7 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
 
 
     def _X_y_to_dmat(self, X, y=None, w=None):
-        dmat = xgb.DMatrix(X)
+        dmat = xgb.DMatrix(pd.DataFrame(X, columns=self.X_colnames))
 
         if (y is not None):
             dmat.set_float_info('label',  y)
@@ -44,7 +44,10 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
             num_quantiles    = num_quantiles, 
             weighted         = weighted, 
             nthread          = nthread)
+
         self.X_colnames = X.columns.values.tolist()
+        self.X_colnames = [item if item!='t_start' else 'time' for item in self.X_colnames]
+
         return IDs, X, w, delta
 
     def fit (self, X, y, w=None):
@@ -90,9 +93,8 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
         self.boxhed_ = xgb.train( self.params_, 
                                   dmat_, 
                                   num_boost_round = self.n_estimators) 
-
-        self.VarImps = {self.X_colnames[int(col[1:])]:val for (col,val) in self.boxhed_.get_score(importance_type='total_gain').items()}
-        self.VarImps['time'] = self.VarImps.pop('t_start')
+        
+        self.VarImps = self.boxhed_.get_score(importance_type='total_gain')
         return self
 
         
@@ -103,7 +105,7 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
             plot_tree(self.boxhed_, num_trees = i)
             fig = plt.gcf()
             fig.set_size_inches(30, 20)
-            fig.savefig("tree"+"_"+str(i)+'.jpg')
+            fig.savefig("tree"+"_"+str(i+1)+'.jpg')
 
         for th_id in range(min(nom_trees, self.n_estimators)):
             print_tree(th_id)
