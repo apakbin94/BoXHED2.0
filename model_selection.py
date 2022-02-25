@@ -272,7 +272,7 @@ class collapsed_gs_:
 
 
         return {
-            "params":          self.srtd_param_dict_test,
+            "params":          np.array(self.srtd_param_dict_test, dtype='object'),
             "mean_test_score": self.srtd_param_dict_test_scores,
             "std_test_score":  self.srtd_param_dict_test_std,
             "se_test_score":   self.srtd_param_dict_test_std/np.sqrt(len(self.cv)),
@@ -295,6 +295,12 @@ def cv(param_grid, x, w, delta, subjects, n_splits, gpu_list, batch_size):
     params      = results['params']
     best_params = results['best_params']
 
-    return list(zip(params, means, stds)), best_params
+    return {"params":params , "score_mean":means, "score_ste":stds/np.sqrt(n_splits)}, best_params
 
 
+def best_param_1se_rule(cv_results):
+    params, means, stes            = [cv_results[key] for key in ["params", "score_mean", "score_ste"]]
+    highest_mean_idx               = np.argmax(means)
+    highest_mean, highest_mean_ste = means[highest_mean_idx], stes[highest_mean_idx]
+    params_within_1se              = [param for (param, mean) in zip(params, means) if abs(mean-highest_mean)<highest_mean_ste]
+    return min(params_within_1se, key=lambda param:param['n_estimators']*np.power(2, param['max_depth']))
