@@ -197,10 +197,10 @@ class preprocessor:
         self.nthread            = nthread
         self.num_quantiles      = min(num_quantiles, 256)
         self.weighted           = weighted
-        is_cat                  = self._contig_bool(np.zeros((1, data.shape[1])))
+        _is_cat                 = self._contig_bool(np.zeros((1, data.shape[1])))
         for cat_col in is_cat:
-            is_cat [0, cat_col] = True
-        self.is_cat             = is_cat
+            _is_cat[0, cat_col] = True
+        self.is_cat             = _is_cat
         nrows                   = data.shape[0]
         ncols                   = data.shape[1]
 
@@ -209,10 +209,10 @@ class preprocessor:
 
         data, nIDs              = self._setup_data(data)
 
-        self._compute_quant(data, nrows, ncols, is_cat)
+        self._compute_quant(data, nrows, ncols, _is_cat)
 
         bndry_info              = self._get_boundaries(data, nrows, ncols, nIDs)
-        preprocessed            = self._preprocess(data, nrows, ncols, is_cat, bndry_info)
+        preprocessed            = self._preprocess(data, nrows, ncols, _is_cat, bndry_info)
         IDs, X, delta, w        = self._prep_output_df(preprocessed)
         self._free_boundary_info(bndry_info)
 
