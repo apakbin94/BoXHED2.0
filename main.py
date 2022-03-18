@@ -209,8 +209,6 @@ if __name__ == "__main__":
     # Print the feature importances saved as a dictionary
     print ("feature importances:", boxhed_.VarImps)
 
-    boxhed_.plot_tree(10)
-
     # Load the test set and the values of the true hazard function at the test points:
     test_X, test_true_haz = read_test_data()
     # Test the BoXHED2.0 hazard estimator on out of sample data
