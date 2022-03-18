@@ -28,6 +28,8 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
 
 
     def _X_y_to_dmat(self, X, y=None, w=None):
+        if not hasattr(self, 'X_colnames'):
+            self.X_colnames = None #model probably created for CV, no need for data name matching
         dmat = xgb.DMatrix(pd.DataFrame(X, columns=self.X_colnames))
 
         if (y is not None):
