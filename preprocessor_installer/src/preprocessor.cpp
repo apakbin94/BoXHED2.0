@@ -377,6 +377,10 @@ inline void _rmv_dupl_srtd(T* arr, const size_t arr_size, size_t * out_size){
     size_t idx = 0;
     T last_val = arr[0];
     for (size_t i=1; i<arr_size; ++i){
+        if (std::isnan(arr[i]))
+        {
+            break;
+        }
         if (arr[i]!=last_val){
             arr[++idx] = arr[i];
             last_val   = arr[i];
