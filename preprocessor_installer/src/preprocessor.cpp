@@ -430,6 +430,20 @@ inline void _copy_col2arr(const T* src, size_t nrows, size_t ncols,
 
 
 template <class T>
+inline void _rmv_nans(T *arr, size_t size, size_t *out_size){
+    size_t idx = 0;
+    for (size_t j = 0; j < size; ++j)
+    {
+        if (!std::isnan(arr[j]))
+        {
+            arr[idx++] = arr[j];
+        }
+    }
+    *out_size = idx;
+}
+
+
+template <class T>
 inline void _compute_quant(const T* data, size_t nrows, size_t ncols, const bool* is_cat, size_t t_start_idx, size_t t_end_idx, size_t id_idx, size_t delta_idx, T* quant, size_t* quant_size, size_t num_quantiles){
  
     #pragma omp parallel for schedule(dynamic)
@@ -449,14 +463,12 @@ inline void _compute_quant(const T* data, size_t nrows, size_t ncols, const bool
             _copy_col2arr(data, nrows, ncols, t_end_idx, vals + nrows);
         }
 
-        std::stable_sort(vals, vals+vals_size,
-               [](const T a, 
-                  const T b)
-                 {return std::isnan(b) || a < b;}
-                );
-        
+        size_t num_non_nan;
+        _rmv_nans(vals, vals_size, &num_non_nan);
+        std::stable_sort(vals, vals + num_non_nan);
+
         size_t num_unique;
-        _rmv_dupl_srtd<T> (vals, vals_size, &num_unique);
+        _rmv_dupl_srtd<T>(vals, num_non_nan, &num_unique);
 
         size_t num_quants = std::min(num_unique, num_quantiles);
         quant_size [col_idx] = num_quants;
