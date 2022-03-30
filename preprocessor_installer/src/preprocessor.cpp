@@ -96,11 +96,12 @@ class preprocessor{
                 T val = data[row_idx*ncols + col_idx];
                 T quantized_val;
 
-                if (is_cat[col_idx]         ||
-                    std::isnan(val)         ||
-                    col_idx == t_start_idx  ||
-                    col_idx == t_end_idx    || 
-                    col_idx == id_col_idx  || 
+                if (is_cat[col_idx]                    ||
+                    quant_size[col_idx]<=num_quantiles ||
+                    std::isnan(val)                    ||
+                    col_idx == t_start_idx             ||
+                    col_idx == t_end_idx               || 
+                    col_idx == id_col_idx              || 
                     col_idx == delta_idx
                     ){
 
