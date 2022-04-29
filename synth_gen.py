@@ -12,6 +12,10 @@ import math
 
 def event_time (t0, x, u, exp_num):
 
+    if exp_num == 0:
+        lambda_ = 1 if x==0 else 2
+        return -math.log(u)/lambda_ + t0
+
     if exp_num == 1:
         return beta.ppf(
                 -math.log(u)/beta.pdf(x,2,2)+beta.cdf(t0,2,2),
@@ -145,7 +149,8 @@ def create_synth_data(exp_num, mode, recurring, p_dropout):
 
 from joblib import Parallel, delayed
 
-create_synth_data(1, "train", False, 0)
+create_synth_data(0, "train", False, 0)
+create_synth_data(0, "test",  False, 0)
 
 exit()
 Parallel(n_jobs=20)(delayed(create_synth_data)(exp_num, mode, recurring, p_dropout) 
