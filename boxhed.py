@@ -127,22 +127,27 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
         return self.boxhed_.predict(self._X_y_to_dmat(X), ntree_limit = ntree_limit)
 
     def get_survival(self, X, t, ntree_limit = 0): #TODO no ind_exp
-        def _truncate_X_to_t(X, t):
-            X          = X[X['t_start']<t]
-            X['t_end'] = X['t_end'].clip(upper=t)
-            return X.reset_index(drop=True)
+        def truncate_to_t(data, t):
+            def _truncate_to_t(data_id):
+                data_id                   = data_id[data_id['t_start']<t]
+                data_id['t_end']          = data_id['t_end'].clip(upper=t)
+                if len(data_id)>0:
+                    data_id['t_end'].iloc[-1] = t
+                return data_id
+            return data.groupby('ID').apply(_truncate_to_t).reset_index(drop=True)
 
         check_is_fitted(self)
-        X                              = _truncate_X_to_t(X, t)
+        X                              = truncate_to_t(X, t)
         cte_hazard_epoch_df            = self.prep.epoch_break_cte_hazard(X)
-        cte_hazard_epoch               = check_array(cte_hazard_epoch_df.drop(columns=["subject", "dt", "delta"]), 
+        cte_hazard_epoch               = check_array(cte_hazard_epoch_df.drop(columns=["ID", "dt", "delta"]), 
                                             force_all_finite='allow-nan')
         cte_hazard_epoch               = self._X_y_to_dmat(cte_hazard_epoch)
         preds                          = self.boxhed_.predict(cte_hazard_epoch, ntree_limit = ntree_limit)
         cte_hazard_epoch_df ['preds']  = preds
         cte_hazard_epoch_df ['surv']   = -cte_hazard_epoch_df ['dt'] * cte_hazard_epoch_df ['preds']
-        surv_t                         = np.exp(cte_hazard_epoch_df.groupby('subject')['surv'].sum()).reset_index()
-        return surv_t
+        surv_t                         = np.exp(cte_hazard_epoch_df.groupby('ID')['surv'].sum()).reset_index()
+        surv_t.rename(columns={'surv':f'surv_at_t={t}'}, inplace=True)
+        return surv_t.set_index('ID')
         
 
 
