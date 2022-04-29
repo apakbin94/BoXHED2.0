@@ -14,7 +14,8 @@ class preprocessor:
 
 
     def __init__(self):
-        self.prep_libfile = './build/lib_preprocessor.so'
+        from os.path import join, dirname, realpath
+        self.prep_libfile = join(dirname(realpath(__file__)), 'build/lib_preprocessor.so')
         self.prep_lib = CDLL(self.prep_libfile)
 
         self.prep_lib.compute_quant.restype    = None
