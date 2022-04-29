@@ -12,6 +12,7 @@ import ctypes
 from joblib import Parallel, delayed
 import numpy as np
 import copy
+from tqdm import tqdm
 #'''
 import os
 #TODO: CAN I DO ANYTHING ABOUT OMP_NUM_THREADS
@@ -217,7 +218,8 @@ class collapsed_gs_:
 
             rslt_mngd =          manager.list([0]*len(self.param_dicts_test))
 
-            for batch_idx in range(int(len(self.param_dicts_train)/self.batch_size)+1):
+            for batch_idx in tqdm(range(int(len(self.param_dicts_train)/self.batch_size)+1),
+                    desc="batched cross validation"):
 
                 param_dict_mngd['batch_idx'] = batch_idx
 
