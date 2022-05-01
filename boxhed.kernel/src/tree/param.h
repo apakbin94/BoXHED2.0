@@ -271,7 +271,7 @@ XGBOOST_DEVICE inline static T Sqr(T a) { return a * a; }
 template <typename TrainingParams, typename T>
 XGBOOST_DEVICE inline T CalcGainGivenWeight(const TrainingParams &p,
                                             T sum_grad, T sum_hess, T w) {
-  return ((sum_hess == T(0.0))||(sum_grad == T(0.0))) ? -std::numeric_limits<double>::infinity() : -sum_hess*(1+std::log(sum_grad/sum_hess));
+  return ((sum_hess == T(0.0))||(sum_grad == T(0.0))) ? -std::numeric_limits<double>::infinity() : -sum_hess * std::log(sum_grad/sum_hess);
   /*
   return -(T(2.0) * sum_grad * w + (sum_hess + p.reg_lambda) * Sqr(w));
   */
