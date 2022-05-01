@@ -81,7 +81,7 @@ def read_test_data():
 #      @ The fitted BoXHED2.0 hazard estimator
 #      @ A dictionary containing timings of different components.
 #@run_as_process
-def cv_train_BoXHED2(train_data):
+def cv_train_BoXHED2(train_data, a, b):
     # Define the output dictionary
     train_info_dict = {}
 
@@ -113,13 +113,13 @@ def cv_train_BoXHED2(train_data):
     
     # Perform K-fold cross-validation to select hyperparameters {tree depth, number of trees, learning rate} if do_CV = True.
     # Otherwise, users should manually specify hyperparameter values. Note that a tree of depth k has 2^k leaf nodes.
-    do_CV = False                                 
-    param_manual = {'max_depth':1, 'n_estimators':200, 'eta':0.1}
+    do_CV = False         
+    param_manual = {'max_depth':a, 'n_estimators':b, 'eta':0.1}
     
     # Specify the candidate values for the hyperparameters to cross-validate on (more trees and/or deeper trees may be needed for other datasets).
     param_grid = {
-        'max_depth':    [1, 2, 3, 4, 5],
-        'n_estimators': [50, 100, 150, 200, 250, 300],
+        'max_depth':    [1, 2, 3],#, 4, 5],
+        'n_estimators': [50, 100, 150, 200, 250, 300],#[10, 20, 30, 40, 50, 60, 70, 80, 90, 100],#,
         'eta':          [0.1]
     }
     
@@ -154,10 +154,17 @@ def cv_train_BoXHED2(train_data):
                                   num_folds,
                                   gpu_list,
                                   batch_size)
-    
+        print (best_params)
+        
+        import pickle
+        #with open("./results/popo.pkl", "wb") as f:
+        #    pickle.dump(cv_rslts, f)
+        #exit()
         train_info_dict["CV_time"] = cv_timer.get_dur()
     else:
         best_params = param_manual
+
+    #print (param_manual)
     best_params['gpu_id'] = gpu_list[0] # Use the first GPU in the list for training
     best_params['nthread'] = nthread_train 
 
@@ -188,6 +195,9 @@ def testRMSE_BoXHED2(boxhed_, test_X, test_true_haz):
     # Use the fitted model to estimate the value of the hazard function for each row of the test set:
     pred_timer = timer()
     preds = boxhed_.predict(test_X)
+
+    #print (preds.min(), preds.max())
+    #exit()
     test_info_dict["pred_time"] = pred_timer.get_dur()
 
     # Compute the RMSE of the estimates, and its 95% confidence interval:
@@ -196,21 +206,78 @@ def testRMSE_BoXHED2(boxhed_, test_X, test_true_haz):
 
     return test_info_dict
 
+import pickle
+def dump_pickle(obj, addr):
+    with open(addr, 'wb') as handle:
+        pickle.dump(obj, handle)
+
+
+def load_pickle(addr):
+    with open(addr, 'rb') as handle:
+        obj = pickle.load(handle)
+    return obj
+
+hypers = {
+    "1_0":  (3, 50),
+    "1_20": (3, 50),
+    "1_40": (3, 50),
+    "2_0":  (4, 50),
+    "2_20": (3, 50),
+    "2_40": (3, 50),
+    "3_0":  (3, 50),
+    "3_20": (2, 50),
+    "3_40": (2, 50),
+    "4_0":  (3, 50),
+    "4_20": (3, 50),
+    "4_40": (3, 50)
+}
+
+
+def read_1_train_data(exp_num, num_irr):
+    return load_pickle(f"./data/1data/_read_synth__{exp_num}__{num_irr}__0.pkl")
+
+
+def read_1_test_data(exp_num, num_irr):
+    return load_pickle(f"./data/1data/_read_synth_test__{exp_num}__{num_irr}.pkl")[:2]
 
 
 if __name__ == "__main__":
+    '''
+    with open("./results/popo.pkl", "rb") as f:
+        cv_rslts = pickle.load(f)
+    from model_selection import best_param_1se_rule
+    best_param_1se_rule(cv_rslts)
+    print (cv_rslts)
+    exit()
+    '''
+    a_, b_, c_ = [], [], []
+    for exp_num in [4]:#[1, 2, 3, 4]:
+        for num_irr in [0]:#[0, 20, 40]:
+            #Read in the training data
 
-    #Read in the training data
-    train_data               = read_train_data()
-    #Train a BoXHED2.0 hazard estimator instance
-    boxhed_, train_info_dict = cv_train_BoXHED2(train_data)
-    print (train_info_dict)
+            train_data               = read_1_train_data(exp_num, num_irr)#read_train_data()
 
-    # Print the feature importances saved as a dictionary
-    print ("feature importances:", boxhed_.VarImps)
+            #Train a BoXHED2.0 hazard estimator instance
+            #a, b = hypers[f"{exp_num}_{num_irr}"]
+            
+            for a in [2]:#[1, 2, 3]:
+                for b in [i*10 for i in range(1, 25)]:#[100]:#[i*10 for i in range(1, 25)]:#[100]:#[70+i for i in range(0, 60)]:#[10, 20, 30, 50, 100, 150, 200, 250, 300]:#[10, 20, 30, 40, 50, 60, 70, 80, 90, 100]:
+                    boxhed_, train_info_dict = cv_train_BoXHED2(train_data, a, b)
+                    #print (train_info_dict)
 
-    # Load the test set and the values of the true hazard function at the test points:
-    test_X, test_true_haz = read_test_data()
-    # Test the BoXHED2.0 hazard estimator on out of sample data
-    test_info_dict        = testRMSE_BoXHED2(boxhed_, test_X, test_true_haz)
-    print (test_info_dict)
+                    # Print the feature importances saved as a dictionary
+                    #print ("feature importances:", boxhed_.VarImps)
+
+                    # Load the test set and the values of the true hazard function at the test points:
+                    test_X, test_true_haz = read_1_test_data(exp_num, num_irr)#read_test_data()
+                    # Test the BoXHED2.0 hazard estimator on out of sample data
+                    test_info_dict        = testRMSE_BoXHED2(boxhed_, test_X, test_true_haz)
+                    print (a, b, '-->', test_info_dict['rmse_CI'][0:5])
+            #print (test_info_dict['rmse_CI'])
+            #a = test_info_dict['rmse_CI']
+            #a_.append(a)
+            #b_.append(hypers[f"{exp_num}_{num_irr}"])
+            #a_.append(a[:5])
+            #b_.append(a[7:12])
+            #c_.append(a[-6:-1])
+    pd.DataFrame({"a_":a_, "b_":b_}).to_csv("./results/egghed.csv", index=None)

@@ -402,12 +402,13 @@ class BoXHEDRegression : public ObjFunction {
 #pragma omp parallel for schedule(static)
     for (omp_ulong i = 0; i < ndata; ++i) { // NOLINT(*)
       const double p = preds_h[i];
-      const double exp_p = std::exp(p);
+      //const double p_abs = std::max(p, static_cast<bst_float>(0.0));
+      //const double exp_p = std::exp(p);
       const double w = info.GetWeight(i);
       const double y = labels[i];
 
-      const double grad = exp_p*w; //U
-      const double hess = y; //V
+      const double grad = p*w-y; //U-V
+      const double hess = w; //W
       gpair.at(i) = GradientPair(grad, hess);
     }
   }
@@ -416,7 +417,7 @@ class BoXHEDRegression : public ObjFunction {
     const long ndata = static_cast<long>(preds.size()); // NOLINT(*)
 #pragma omp parallel for schedule(static)
     for (long j = 0; j < ndata; ++j) {  // NOLINT(*)
-      preds[j] = std::exp(preds[j]);
+      preds[j] = preds[j];//std::max(preds[j], static_cast<bst_float>(0.0));
     }
   }
   void EvalTransform(HostDeviceVector<bst_float> *io_preds) override {
@@ -474,11 +475,11 @@ class BoXHEDRegression_GPU : public ObjFunction {
                            common::Span<const bst_float> _preds,
                            common::Span<const bst_float> _labels,
                            common::Span<const bst_float> _weights) {
-          bst_float exp_p = std::exp(_preds[_idx]);
+          bst_float p = _preds[_idx];
           bst_float w = _weights[_idx];
           bst_float y = _labels[_idx];
-          _out_gpair[_idx] = GradientPair{exp_p * w,
-                                          y};
+          _out_gpair[_idx] = GradientPair{p * w-y,
+                                          w};
         },
         common::Range{0, static_cast<int64_t>(ndata)}, device).Eval(
             out_gpair, &preds, &info.labels_, &info.weights_);
@@ -488,7 +489,7 @@ class BoXHEDRegression_GPU : public ObjFunction {
   void PredTransform(HostDeviceVector<bst_float> *io_preds) override {
     common::Transform<>::Init(
         [] XGBOOST_DEVICE(size_t _idx, common::Span<bst_float> _preds) {
-          _preds[_idx] = expf(_preds[_idx]);
+          _preds[_idx] = _preds[_idx];//std::max(_preds[_idx], static_cast<bst_float>(0.0));
         },
         common::Range{0, static_cast<int64_t>(io_preds->Size())},
         tparam_->gpu_id)

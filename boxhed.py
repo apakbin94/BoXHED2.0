@@ -69,7 +69,7 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
         if w is None:
             w = np.ones_like(y)
 
-        f0_   = np.log(np.sum(y)/np.sum(w))
+        f0_   = np.sum(y)/np.sum(w)#np.log(np.sum(y)/np.sum(w))
         dmat_ = self._X_y_to_dmat(X, y, w)
 
         if self.gpu_id>=0:
@@ -124,7 +124,7 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
             pass
         X = check_array(X, force_all_finite='allow-nan')
 
-        return self.boxhed_.predict(self._X_y_to_dmat(X), ntree_limit = ntree_limit)
+        return np.maximum(self.boxhed_.predict(self._X_y_to_dmat(X), ntree_limit = ntree_limit), 0)
 
     def get_survival(self, X, t, ntree_limit = 0): #TODO no ind_exp
         def truncate_to_t(data, t):
@@ -171,4 +171,4 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
             w = np.zeros_like(y)
 
         preds = self.predict(X, ntree_limit = ntree_limit)
-        return -(np.inner(preds, w)-np.inner(np.log(preds), y))
+        return -(np.inner(np.power(preds, 2), w)-2*np.inner(preds, y))
