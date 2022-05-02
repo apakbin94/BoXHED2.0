@@ -232,13 +232,13 @@ hypers = {
     "4_40": (3, 50)
 }
 
-
-def read_1_train_data(exp_num, num_irr):
-    return load_pickle(f"./data/1data/_read_synth__{exp_num}__{num_irr}__0.pkl")
+from os.path import join, dirname, realpath
+def read_1_train_data(exp_num, num_irr):    
+    return load_pickle(join(dirname(realpath(__file__)), f"./data/1data/_read_synth__{exp_num}__{num_irr}__0.pkl"))
 
 
 def read_1_test_data(exp_num, num_irr):
-    return load_pickle(f"./data/1data/_read_synth_test__{exp_num}__{num_irr}.pkl")[:2]
+    return load_pickle(join(dirname(realpath(__file__)), f"./data/1data/_read_synth_test__{exp_num}__{num_irr}.pkl"))[:2]
 
 
 if __name__ == "__main__":
