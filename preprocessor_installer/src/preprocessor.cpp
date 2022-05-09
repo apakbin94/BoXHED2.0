@@ -97,7 +97,7 @@ class preprocessor{
                 T quantized_val;
 
                 if (is_cat[col_idx]                    ||
-                    quant_size[col_idx]<=num_quantiles ||
+                    quant_size[col_idx]< num_quantiles ||
                     std::isnan(val)                    ||
                     col_idx == t_start_idx             ||
                     col_idx == t_end_idx               || 
