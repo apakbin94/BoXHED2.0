@@ -1,10 +1,9 @@
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, TransformerMixin 
 from sklearn.utils.estimator_checks import check_estimator
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
-from collections.abc import Iterable
-from utils import read_config_json
 from preprocessor import preprocessor
 
 #TODO: maybe this can change once I figure out the BoXHED/XGB distinction while installing
@@ -15,6 +14,72 @@ from xgboost import plot_tree
 import matplotlib.pyplot as plt
 
 from sklearn.preprocessing import LabelEncoder
+
+
+def _left_ind_f(split_col, split_val, include_missing):
+    missing_ind_f = np.is_nan if include_missing else (lambda x: np.zeros_like(x, dtype=bool))
+    return (lambda X: np.logical_or(X[:, split_col]<split_val, missing_ind_f(X[:, split_col])))
+
+
+def _find_idx_series(series, val):
+    return series[series == val].index[0]
+
+
+class pred_node:
+    def recursive_build(self, tree_df, row):
+        tree_row = tree_df.iloc[row]
+        
+        if tree_row['Feature']=="Leaf":
+            self.weight = tree_row['Gain']
+            return
+        
+        self.left_ind_f = _left_ind_f(
+                                split_col       = tree_row['Feature'], 
+                                split_val       = tree_row['Split'], 
+                                include_missing = tree_row['Yes'    ] == tree_row['Missing'])
+
+        self.left_node, self.rigt_node = pred_node(), pred_node()
+        self.left_node.recursive_build(tree_df, _find_idx_series(tree_df['ID'], tree_row['Yes']))
+        self.rigt_node.recursive_build(tree_df, _find_idx_series(tree_df['ID'], tree_row['No' ]))
+
+
+    def recursive_pred(self, X):
+        if hasattr(self, 'weight'):
+            return self.weight
+
+        left_ind = self.left_ind_f(X)
+        return  left_ind            * self.left_node.recursive_pred(X) + \
+                np.invert(left_ind) * self.rigt_node.recursive_pred(X)
+
+
+class pred_tree:
+    def __init__(self):
+        self.root = None
+
+    def build(self, tree_df):
+        self.root = pred_node()
+        self.root.recursive_build(tree_df, 0)
+
+    def pred(self, X):
+        return self.root.recursive_pred(X)
+
+
+
+class iboxhed_pred_trees:
+    def build(self, trees_df):
+        pred_trees = []
+        for tree, tree_df in tqdm(trees_df.groupby('Tree'), desc="building pred trees"):
+            tree_df.reset_index(drop=True, inplace=True)
+            t = pred_tree()
+            t.build(tree_df)
+            pred_trees.append(t)
+            #feature_set = set(tree_df['Feature'])
+            #feature_set.remove('Leaf')
+            #print (feature_set)
+        self.pred_trees = pred_trees
+        
+    def predict(self, X, f0):
+        return f0+sum([tree.pred(X) for tree in tqdm(self.pred_trees, desc="predicting")])
 
 
 class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin, 
@@ -52,12 +117,21 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
 
         return IDs, X, w, delta
 
+
+    def _get_time_cov_only_interatctions(self, cols):
+        time_idx = cols.index('t_start')
+        return [[time_idx, idx] for idx in range(len(cols)) if idx!=time_idx ]
+
+
     def fit (self, X, y, w=None):
 
         #TODO: could I do the type checking better?
         check_array(y, ensure_2d = False)
         #TODO: make sure prep exists
         # or: if does not exist, create it now and train on preprocessed
+
+        self.train_X_cols = X.columns.tolist()
+        self.interactions = self._get_time_cov_only_interatctions(X.columns.tolist())
 
         le = LabelEncoder()
         y  = le.fit_transform(y)
@@ -70,6 +144,7 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
             w = np.ones_like(y)
 
         f0_   = np.log(np.sum(y)/np.sum(w))
+        self.f0_ = f0_
         dmat_ = self._X_y_to_dmat(X, y, w)
 
         if self.gpu_id>=0:
@@ -86,7 +161,7 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
                                 'max_depth':        self.max_depth,
                                 'eta':              self.eta,
                                 'grow_policy':     'lossguide',
-
+                                #'interaction_constraints': self.interactions,
                                 'base_score':       f0_,
                                 'gpu_id':           self.gpu_id,
                                 'nthread':          self.nthread
@@ -172,3 +247,19 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
 
         preds = self.predict(X, ntree_limit = ntree_limit)
         return -(np.inner(preds, w)-np.inner(np.log(preds), y))
+
+    def iboxhed_build(self):
+        check_is_fitted(self)
+        assert hasattr(self, "interactions"), "ERROR: iBoXHED not fitted with interaction constraints!"
+        trees_df = self.boxhed_.trees_to_dataframe()
+        cols = [col if col != 't_start' else 'time' for col in self.train_X_cols if col not in ["ID", "t_end", "delta"]]
+        trees_df["Feature"].replace({col:idx for idx, col in enumerate(cols)}, inplace=True)
+        print (trees_df)
+        self.iboxhed_pred_trees = iboxhed_pred_trees()
+        self.iboxhed_pred_trees.build(trees_df)
+
+
+    def iboxhed_predict(self, X):
+        check_is_fitted(self)
+        assert hasattr(self, "iboxhed_pred_trees"), "ERROR: iBoXHED prediction trees not built!"
+        return np.exp(self.iboxhed_pred_trees.predict(X.values, self.f0_))
