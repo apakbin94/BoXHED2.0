@@ -114,7 +114,7 @@ def cv_train_BoXHED2(train_data):
     # Perform K-fold cross-validation to select hyperparameters {tree depth, number of trees, learning rate} if do_CV = True.
     # Otherwise, users should manually specify hyperparameter values. Note that a tree of depth k has 2^k leaf nodes.
     do_CV = False                                 
-    param_manual = {'max_depth':1, 'n_estimators':200, 'eta':0.1}
+    param_manual = {'max_depth':2, 'n_estimators':100, 'eta':0.1}
     
     # Specify the candidate values for the hyperparameters to cross-validate on (more trees and/or deeper trees may be needed for other datasets).
     param_grid = {
@@ -191,6 +191,12 @@ def testRMSE_BoXHED2(boxhed_, test_X, test_true_haz):
     test_info_dict["pred_time"] = pred_timer.get_dur()
 
     # Compute the RMSE of the estimates, and its 95% confidence interval:
+    L2 = calc_L2(preds, test_true_haz)
+    test_info_dict["rmse_CI"] = f"{L2['point_estimate']:.3f} ({L2['lower_CI']:.3f}, {L2['higher_CI']:.3f})"
+    print (test_info_dict)
+
+    boxhed_.iboxhed_build()
+    preds = boxhed_.iboxhed_predict(test_X)
     L2 = calc_L2(preds, test_true_haz)
     test_info_dict["rmse_CI"] = f"{L2['point_estimate']:.3f} ({L2['lower_CI']:.3f}, {L2['higher_CI']:.3f})"
 

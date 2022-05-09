@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from collections import defaultdict
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin, TransformerMixin 
 from sklearn.utils.estimator_checks import check_estimator
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
@@ -68,18 +69,24 @@ class pred_tree:
 class iboxhed_pred_trees:
     def build(self, trees_df):
         pred_trees = []
+        feature_tree_idxs = defaultdict(list)
         for tree, tree_df in tqdm(trees_df.groupby('Tree'), desc="building pred trees"):
             tree_df.reset_index(drop=True, inplace=True)
             t = pred_tree()
             t.build(tree_df)
             pred_trees.append(t)
-            #feature_set = set(tree_df['Feature'])
-            #feature_set.remove('Leaf')
-            #print (feature_set)
+            feature_set = set(tree_df['Feature'])
+            feature_set.remove('Leaf')
+            for feature_idx in feature_set:
+                feature_tree_idxs[feature_idx].append(tree)
         self.pred_trees = pred_trees
+        self.feature_tree_idxs = feature_tree_idxs
         
     def predict(self, X, f0):
         return f0+sum([tree.pred(X) for tree in tqdm(self.pred_trees, desc="predicting")])
+
+    def contrib_predict(self, X, col_idx):
+        return sum([self.pred_trees[tree_idx].pred(X) for tree_idx in tqdm(self.feature_tree_idxs[col_idx], desc=f"predicting column {col_idx} contribution")])
 
 
 class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin, 
@@ -161,7 +168,7 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
                                 'max_depth':        self.max_depth,
                                 'eta':              self.eta,
                                 'grow_policy':     'lossguide',
-                                #'interaction_constraints': self.interactions,
+                                'interaction_constraints': self.interactions,
                                 'base_score':       f0_,
                                 'gpu_id':           self.gpu_id,
                                 'nthread':          self.nthread
@@ -254,7 +261,6 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
         trees_df = self.boxhed_.trees_to_dataframe()
         cols = [col if col != 't_start' else 'time' for col in self.train_X_cols if col not in ["ID", "t_end", "delta"]]
         trees_df["Feature"].replace({col:idx for idx, col in enumerate(cols)}, inplace=True)
-        print (trees_df)
         self.iboxhed_pred_trees = iboxhed_pred_trees()
         self.iboxhed_pred_trees.build(trees_df)
 
