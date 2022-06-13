@@ -129,10 +129,12 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
     def get_survival(self, X, t, ntree_limit = 0): #TODO no ind_exp
         def truncate_to_t(data, t):
             def _truncate_to_t(data_id):
-                data_id                   = data_id[data_id['t_start']<t]
-                data_id['t_end']          = data_id['t_end'].clip(upper=t)
+                #data_id                   = data_id[data_id['t_start']<t]
+                t_                        = data_id['t_start'].iloc[0]+t
+                data_id                   = data_id[data_id['t_start']<t_]
+                data_id['t_end']          = data_id['t_end'].clip(upper=t_)
                 if len(data_id)>0:
-                    data_id['t_end'].iloc[-1] = t
+                    data_id['t_end'].iloc[-1] = t_
                 return data_id
             return data.groupby('ID').apply(_truncate_to_t).reset_index(drop=True)
 
