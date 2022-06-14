@@ -27,7 +27,7 @@ def _find_idx_series(series, val):
 
 
 class pred_node:
-    def recursive_build(self, tree_df, row):
+    def recursive_build(self, tree_df, col_to_idxs, row):
         tree_row = tree_df.iloc[row]
         
         if tree_row['Feature']=="Leaf":
@@ -35,13 +35,13 @@ class pred_node:
             return
         
         self.left_ind_f = _left_ind_f(
-                                split_col       = tree_row['Feature'], 
+                                split_col       = col_to_idxs[tree_row['Feature']], 
                                 split_val       = tree_row['Split'], 
                                 include_missing = tree_row['Yes'    ] == tree_row['Missing'])
 
         self.left_node, self.rigt_node = pred_node(), pred_node()
-        self.left_node.recursive_build(tree_df, _find_idx_series(tree_df['ID'], tree_row['Yes']))
-        self.rigt_node.recursive_build(tree_df, _find_idx_series(tree_df['ID'], tree_row['No' ]))
+        self.left_node.recursive_build(tree_df, col_to_idxs, _find_idx_series(tree_df['ID'], tree_row['Yes']))
+        self.rigt_node.recursive_build(tree_df, col_to_idxs, _find_idx_series(tree_df['ID'], tree_row['No' ]))
 
 
     def recursive_pred(self, X):
@@ -57,9 +57,9 @@ class pred_tree:
     def __init__(self):
         self.root = None
 
-    def build(self, tree_df):
+    def build(self, tree_df, col_to_idxs):
         self.root = pred_node()
-        self.root.recursive_build(tree_df, 0)
+        self.root.recursive_build(tree_df, col_to_idxs, 0)
 
     def pred(self, X):
         return self.root.recursive_pred(X)
@@ -67,26 +67,35 @@ class pred_tree:
 
 
 class iboxhed_pred_trees:
-    def build(self, trees_df):
+    def build(self, trees_df, col_to_idx):
+        self.col_to_idx = col_to_idx
         pred_trees = []
-        feature_tree_idxs = defaultdict(list)
+        feature_trees = defaultdict(list)
         for tree, tree_df in tqdm(trees_df.groupby('Tree'), desc="building pred trees"):
             tree_df.reset_index(drop=True, inplace=True)
             t = pred_tree()
-            t.build(tree_df)
+            t.build(tree_df, col_to_idx)
             pred_trees.append(t)
             feature_set = set(tree_df['Feature'])
             feature_set.remove('Leaf')
             for feature_idx in feature_set:
-                feature_tree_idxs[feature_idx].append(tree)
+                tree_df_ = tree_df.copy()
+                tree_df_.loc[~tree_df_['Feature'].isin([feature_idx, 'Leaf', 'time']), 'Gain'] = 0
+                tree_df_.loc[~tree_df_['Feature'].isin([feature_idx, 'Leaf', 'time']), 'Feature'] = 'Leaf'
+                t = pred_tree()
+                t.build(tree_df_, col_to_idx)
+                feature_trees[feature_idx].append(t)
+
         self.pred_trees = pred_trees
-        self.feature_tree_idxs = feature_tree_idxs
+        self.feature_trees = feature_trees
         
     def predict(self, X, f0):
         return f0+sum([tree.pred(X) for tree in tqdm(self.pred_trees, desc="predicting")])
 
-    def contrib_predict(self, X, col_idx):
-        return sum([self.pred_trees[tree_idx].pred(X) for tree_idx in tqdm(self.feature_tree_idxs[col_idx], desc=f"predicting column {col_idx} contribution")])
+    def contrib_predict(self, X, col):
+        if not isinstance(X, np.ndarray):
+            X = X.values
+        return sum([tree.pred(X) for tree in tqdm(self.feature_trees[col], desc=f"predicting column {col} contribution")])
 
 
 class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin, 
@@ -260,9 +269,10 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
         assert hasattr(self, "interactions"), "ERROR: iBoXHED not fitted with interaction constraints!"
         trees_df = self.boxhed_.trees_to_dataframe()
         cols = [col if col != 't_start' else 'time' for col in self.train_X_cols if col not in ["ID", "t_end", "delta"]]
-        trees_df["Feature"].replace({col:idx for idx, col in enumerate(cols)}, inplace=True)
+        col_to_idx = {col:idx for idx, col in enumerate(cols)}
+        #trees_df["Feature"].replace({col:idx for idx, col in enumerate(cols)}, inplace=True)
         self.iboxhed_pred_trees = iboxhed_pred_trees()
-        self.iboxhed_pred_trees.build(trees_df)
+        self.iboxhed_pred_trees.build(trees_df, col_to_idx)
 
 
     def iboxhed_predict(self, X):
