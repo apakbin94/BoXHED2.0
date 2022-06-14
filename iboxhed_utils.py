@@ -1,19 +1,22 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
-def get_heatmap(self, col):
-    x = self.unique_vals[col]
-    t = self.unique_vals[0]
+def get_heatmap(boxhed_, X, time_col, col):
+    t, x = [X[col].values                  for col in [time_col, col]]
+    #t, x = [np.sort(np.unique(arr))        for arr in [t, x]]
+    #t, x = [np.concatenate([[round(arr[0])], arr, [round(arr[-1])]]) for arr in [t, x]]
+    t, x = [np.linspace(round(arr.min()), round(arr.max()), num=2000) for arr in [t, x]]
 
-    x = np.append(x, round(x[-1]))
-    t = np.append(t, round(t[-1]))
     assert (len(x) == len(t))
     N = len(x)
 
-    X         = np.zeros((N**2, N**2))
-    X[:, col] = np.repeat(x, N)
-    X[:, 0]   = np.tile(t,   N)
+    X_      = np.zeros((N**2, X.shape[1]))
+    X_[:, list(X.columns).index(col)] \
+            = np.repeat(x, N)
+    X_[:, list(X.columns).index(time_col)] \
+            = np.tile(t,   N)
 
-    preds     = self._get_F_Xt(X, col)
+    preds     = boxhed_.iboxhed_pred_trees.contrib_predict(X_, col)
     preds     = preds.reshape((N, N))
     preds     = preds[1:, 1:]
 
@@ -40,10 +43,10 @@ def get_heatmap(self, col):
     ax.set_yticks(x_ticks)
     ax.set_yticklabels(x_ticks, fontsize=font_size)
 
-    title = r"$F_{"+str(self.num_iters).encode('unicode_escape').decode()+"}(t, x_{"+str(col).encode('unicode_escape').decode()+"})="+r"-\nu\sum"+r"_{m=0}^{"+str(self.num_iters-1).encode('unicode_escape').decode()+r"}g_m(t,x_{"+str(col).encode('unicode_escape').decode()+r"})$"
-    ax.set_title(title, fontsize = font_size-4)
+    #title = r"$F_{"+str(self.num_iters).encode('unicode_escape').decode()+"}(t, x_{"+str(col).encode('unicode_escape').decode()+"})="+r"-\nu\sum"+r"_{m=0}^{"+str(self.num_iters-1).encode('unicode_escape').decode()+r"}g_m(t,x_{"+str(col).encode('unicode_escape').decode()+r"})$"
+    #ax.set_title(title, fontsize = font_size-4)
 
-    ax.set_ylabel((r"$X_{"+str(col).encode('unicode_escape').decode()+r"}$"), fontsize=font_size)
+    ax.set_ylabel((r"$"+str(col).encode('unicode_escape').decode()+r"$"), fontsize=font_size)
     cbar = fig.colorbar(colormesh, ax=ax)
     cbar.set_ticks(cbar_ticks, cbar_ticks)
     cbar.ax.tick_params(labelsize=font_size)
