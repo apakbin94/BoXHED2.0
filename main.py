@@ -169,6 +169,11 @@ def cv_train_BoXHED2(train_data):
     boxhed_.fit(X, delta, w)
     train_info_dict["fit_time"] = fit_timer.get_dur()
 
+    boxhed_.iboxhed_build()
+    from iboxhed_utils import get_heatmap
+    fig, ax = get_heatmap(boxhed_, X, 't_start', 'X_0')
+    fig.savefig('./results/iboxhed_first.jpg')
+
     return boxhed_, train_info_dict
 
 
