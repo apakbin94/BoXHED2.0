@@ -18,7 +18,7 @@ from sklearn.preprocessing import LabelEncoder
 
 
 def _left_ind_f(split_col, split_val, include_missing):
-    missing_ind_f = np.is_nan if include_missing else (lambda x: np.zeros_like(x, dtype=bool))
+    missing_ind_f = np.isnan if include_missing else (lambda x: np.zeros_like(x, dtype=bool))
     return (lambda X: np.logical_or(X[:, split_col]<split_val, missing_ind_f(X[:, split_col])))
 
 
@@ -72,6 +72,7 @@ class iboxhed_pred_trees:
         pred_trees = []
         feature_trees = defaultdict(list)
         for tree, tree_df in tqdm(trees_df.groupby('Tree'), desc="building pred trees"):
+            #print (tree_df)
             tree_df.reset_index(drop=True, inplace=True)
             t = pred_tree()
             t.build(tree_df, col_to_idx)
@@ -95,6 +96,10 @@ class iboxhed_pred_trees:
     def contrib_predict(self, X, col):
         if not isinstance(X, np.ndarray):
             X = X.values
+        #print (X)
+        #print (col)
+        #print (self.feature_trees)
+        #print ([tree.pred(X) for tree in tqdm(self.feature_trees[col], desc=f"predicting column {col} contribution")])
         return sum([tree.pred(X) for tree in tqdm(self.feature_trees[col], desc=f"predicting column {col} contribution")])
 
 
@@ -146,8 +151,14 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
         #TODO: make sure prep exists
         # or: if does not exist, create it now and train on preprocessed
 
-        self.train_X_cols = X.columns.tolist()
-        self.interactions = self._get_time_cov_only_interatctions(X.columns.tolist())
+        
+        if isinstance(X, pd.DataFrame):
+            self.train_X_cols = X.columns.tolist()
+            self.interactions = self._get_time_cov_only_interatctions(X.columns.tolist())
+        else:
+            print ("WARNING! ASSUMING time to be index 0. X was a Numpy object!")
+            self.interactions = [[0, idx] for idx in range(1, X.shape[1])]
+ 
 
         le = LabelEncoder()
         y  = le.fit_transform(y)
@@ -267,6 +278,7 @@ class boxhed(BaseEstimator, RegressorMixin):#ClassifierMixin,
     def iboxhed_build(self):
         check_is_fitted(self)
         assert hasattr(self, "interactions"), "ERROR: iBoXHED not fitted with interaction constraints!"
+        assert hasattr(self, "train_X_cols"), "ERROR: iBoXHED not fitted with a dataframe!"
         trees_df = self.boxhed_.trees_to_dataframe()
         cols = [col if col != 't_start' else 'time' for col in self.train_X_cols if col not in ["ID", "t_end", "delta"]]
         col_to_idx = {col:idx for idx, col in enumerate(cols)}
